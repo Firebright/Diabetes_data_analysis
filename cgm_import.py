@@ -6,70 +6,61 @@ Created on Mon Jan 16 17:06:12 2012
 """
 from locate_data import dir_list_gen
 import numpy
+import csv
 
 def CGM_data_extraction(data_in):
-    wj = 1
-    dl = len(data_in)
-    
-    timestamp_in = data_in[0:2:-1]
-    CGM_in = data_in[1:2:-1]
-    
-    # setting up the intial vectors
-    timestamp_data = numpy.zeros((dl/2,1))
-    CGM_values = numpy.zeros((dl/2,1))
-    
-    for rh in range(dl/2):
-        if not data_in[rh]:
-            continue
-        if timestamp_in[rh]:
-            # good time data
-            # conditioning the timestamp
-            timestamp_data[wj] = (timestamp_in[rh]) + 693961
-            # getting the CGM values (if valid)
-            if (CGM_in[rh]):
-                # convert from mg/dL to mm/L
-                mm = (CGM_in[rh])/18.02
-                if mm> 0.2:
-                    CGM_values[wj] = mm
-            wj = wj +1
-    # sorting to make sure timestamps are only increasing
-    # [timestamp_data, sorting_ind] = sort(timestamp_data)
-    # carbs_values = carbs_values(sorting_ind)
-    
-    # removing the data times which have no bg data
-    CGM_values[numpy.isnan(timestamp_data)==1] =[]
-    timestamp_data[numpy.isnan(timestamp_data)==1] =[]
-    timestamp_data[numpy.isnan(CGM_values)==1] =[]
-    CGM_values[numpy.isnan(CGM_values)==1] =[]
-    # taking the unique timestamps
-    timestamp_data, CGM_ind = numpy.unique(timestamp_data)
-    CGM_values = CGM_values(CGM_ind)
-    return [timestamp_data, CGM_values]
+    '''Conditioning the extracted raw CGM data into a datastream.'''
+    #remove data with empty timestamps, empty data, or 
+    # where the value is < 4 as this is a bogus placeholder.
+    device_name = data_in[3][1]
+    device_id = data_in[4][1]    
+    timestamps = data_in[0][1:]
+    values = data_in[11][1:]
+    # convert to floats from strings
+    values = map(float,values)
+    timestamps = map(float, timestamps)
+    ind1 = numpy.nonzero(not timestamps)
+    ind2 = numpy.nonzero(not values)
+    ind3 = numpy.nonzero(values < 4)
+    ind = union(ind1, ind2)
+    ind = union(ind, ind3)
+    ind.sort()
+    # Makes sure the indicies are deleated from the bottom up.
+    ind.reverse()
+    for ne in range(len(ind)):   
+        del timestamps[ind[ne]]
+        del values[ind[ne]]
+    # correct the time stamp
+    timestamps = map(convert_timestamps, timestamps)
+    # convert from mg/dL to mm/L
+    values = map(convert_units, values)
+    return [timestamps, values, device_name, device_id]
     
 def get_CGM_data(dir_path):
+    '''Extract raw data from the file.'''
     lst = dir_list_gen(dir_path,'TAB')
+    #for kn in range(len(lst)):
     out = []
-    for kn in range(len(lst)):
-        [temp[:,0],temp[:,1]]= textread(lst[kn],['#f',\
-            '#*s#*s#*s#*s#*s#*s#u#*s#*s#*s#*s#*s#*s#*s#*s#*s#*s#*s#*s#*s',\
-            '#*s#*s#*s#*s#*s#*s#*s#*s#*s#*s#*s#*s#*s#*s#*s'],\
-            'headerlines',2, 'delimiter','\t')
-        out = concatenate(1,out,temp)
+    with open(lst[0],'rb') as f:
+        reader = csv.reader(f, delimiter='\t')
+        for row in reader:
+            out.append(row)
+        out = [[row[i] for row in out] for i in range(len(out[0]))]  
+    timestamps, values, device_name, device_id = \
+     CGM_data_extraction(out)
+    return [timestamps, values], device_name, device_id
     
-    #remove data with empty timestamps, empty data, or 
-    # where the value is <3 as this is a bogus placeholder.
-    ind1 = numpy.nonzero(not out[:,0])
-    ind2 = numpy.nonzero(not out[:,1])
-    ind3 = numpy.nonzero(out[:,1]< 4)
-    ind = numpy.union(ind1,ind2)
-    ind = numpy.union(ind,ind3)
-    out[ind,:] = []
-    # convert from mg/dL to mm/L
-    out[:,1] = out[:,1]/18
-    # correct the time stamp need to add 1900 to the year and subtract one day
-    a = datevec(out[:,0])
-    a[:,0] = a[:,0] + 1900
-    a[:,2] = a[:,2] - 1
     
-    out[:,0] = datenum(a)
-    return out
+def union(a, b):
+    """ return the union of two lists """
+    return list(set(a) | set(b))
+
+def convert_units(a):
+    # converts from mg/dL to mm/L
+    return a / 18.02
+    
+def convert_timestamps(a):
+    # converts input timestamps to python timestamps
+    # FIXME - this conversion is only approximate
+    # Need to verify the CGM sorfware zero time
+    return a + 41.9015 * 365 * 24 *3600

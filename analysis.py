@@ -9,6 +9,7 @@ import numpy
 from matplotlib.pyplot import figure, plot, show, hold, legend, subplot, axes
 from plottinglib import light_filter_pie
 from xls_import import import_module_xls
+from cgm_import import get_CGM_data
 import datetime
 
 def add_pre_meal_flag(tm_nxt_carbs):
@@ -420,6 +421,8 @@ def top():
     bolusstream, basalstream, basaladjustream, basaladjlstream, \
             bgstream, carbstream, eventstream\
             = import_module_xls('.')
+    cgmstream, cgm_device_name, cgm_device_id = \
+            get_CGM_data('./CGM_data')
     # Need to generate minute by minute traces
     basal_trace = generate_basal_trace(basalstream)
     bg_trace = generate_bg_trace(bgstream)
