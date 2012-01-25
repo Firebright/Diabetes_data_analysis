@@ -6,11 +6,10 @@ Created on Tue Aug 23 15:57:57 2011
 """
 import numpy
 #from matplotlib.dates import date2num, num2date
-from matplotlib.pyplot import figure, plot, show, hold, legend, subplot, axes
-from plottinglib import light_filter_pie
 from xls_import import import_module_xls
 from cgm_import import get_CGM_data
 import datetime
+import plotting
 
 def add_pre_meal_flag(tm_nxt_carbs):
     '''Generating a vector of 0's and 1's to designate if the current bg
@@ -310,8 +309,6 @@ def daily_stats(trace):
     if not trace:
         return [None, None], [None, None], [None, None], [None, None]
     else:
-        trace = remove_nan_from_stream(trace)
-        print numpy.isnan(numpy.array(trace[0])).any
         for kse in range(len(trace[0])):
             trace[0][kse] = trace[0][kse]/86400.
         day_breaks = numpy.nonzero(numpy.diff(numpy.floor(trace[0])) != 0)
@@ -347,6 +344,56 @@ def generate_state_streams(bg_data, state):
            [t_high1, high1], [t_high2, high2], [t_high3, high3],
             [t_hypo, hypo], [t_hyper, hyper]]
 
+def combine_data_streams(samples, bg_data, CGM_data):
+    '''using the bg data from the monitor to pin the CGM data 
+    (assumes bg monitor is more reliable than the CGM)'''
+    if not CGM_data or not samples:
+        combined_data = None
+    else:
+        combined_data = CGM_data
+        for hs in range(len(samples[0])-1):
+            sample_start = samples[0][hs]
+            sample_end = samples[0][hs+1]
+            tmp_start = numpy.nonzero(CGM_data[0] == sample_start)
+            tmp_end = numpy.nonzero(CGM_data[0] ==  sample_end)
+            if tmp_end - tmp_start > 0:
+                # difference between samples and CGM data
+                diff1 = samples[1][hs] - CGM_data[1][tmp_start]
+                diff2 = samples[hs + 1, 1] - CGM_data[1][tmp_end]
+                temp = CGM_data[1][tmp_start:tmp_end]
+                # initially shift everything down by diff1
+                temp = temp + diff1
+                #then compress so get diff2 == 0
+                # Assumes difference is distributed linearly along range.
+                for hm in range(tmp_end-tmp_start + 1):
+                    temp[hm] = temp(hm) + \
+                        ((diff2 - diff1) * (hm - 1) / (tmp_end - tmp_start))
+                combined_data[1][tmp_start:tmp_end] = temp
+       # # find the earlyst reading between bg_data and combined
+        #if bg_data[0][0] < combined_data[0][0]:
+         #   st = round2minute(bg_data[0][0])
+       # else:
+         #   st = round2minute(combined_data[0][0])
+       # # find the latest reading between bg_data and combined
+        #if bg_data[0][-1] > combined_data[0][-1]:
+         #   ed = round2minute(bg_data[0][-1])
+       # else:
+         #   ed = round2minute(combined_data[0][-1]])
+        #lth = round((ed -st)*24*60)
+        #tmp = zeros((lth,2))
+        #cb = round2minute(combined_data[0])
+        #twn = round2minute(bg_data[0])
+        #for osf in range(lth):
+           # ih =  nonzero( abs(cb - (st + (osf-1)/(24*60))) < 1E-8)
+            #if ih:
+              #  tmp[osf,:] = combined_data[ih,:]
+           # else:
+             #   ih =  nonzero(abs(twn - (st + (osf-1)/(24*60))) < 1E-8)
+              #  if not ih:
+              #      tmp[osf,:] = tw.bg_data[ih,:]
+       # combined_data = tmp
+    return combined_data
+
 def unique_list(seq):
     '''Return the unique values in a list.'''
     seen = set()
@@ -376,27 +423,6 @@ def separate_states(bg_data, state):
     hypo = warn + low
     return high3, high2, high1, okay, warn, low, hyper, hypo
     
-def calc_fractions(data):
-    '''Calculating the fraction of samples in each state.'''
-    # total is hypo + OK + hyper states
-    total_samples = len(data[6][0]) + len(data[2][0]) + len(data[7][0]) 
-    frac_high3 = len(data[5][0]) *100. / total_samples
-    frac_high2 = len(data[4][0]) *100. / total_samples
-    frac_high1 = len(data[3][0]) *100. / total_samples
-    frac_ok    = len(data[2][0]) *100. / total_samples
-    frac_warn  = len(data[1][0]) *100. / total_samples
-    frac_low   = len(data[0][0]) *100. / total_samples
-    return [frac_low, frac_warn, frac_ok, frac_high1, frac_high2, frac_high3]
-
-
-def remove_nan_from_list(data_in):
-    '''Removes nan from a list of numbers'''
-    data_out = []
-    for dkn in data_in:
-        if not numpy.isnan(dkn):
-            data_out.append(dkn)
-    return data_out
-
 def remove_nan_from_stream(data_in):
     '''Remove data points where the data is nan
     (so also removes the timestamp)'''
@@ -408,7 +434,14 @@ def remove_nan_from_stream(data_in):
             data_out.append(data_in[1][hst])
             time_out.append(data_in[0][hst])
     return [time_out, data_out]
-
+    
+def remove_nan_from_list(data_in):
+    '''Removes nan from a list of numbers'''
+    data_out = []
+    for dkn in data_in:
+        if not numpy.isnan(dkn):
+            data_out.append(dkn)
+    return data_out
 
 def top():   
     '''Analysis of blood glucose and insulin dose data which has been 
@@ -423,21 +456,42 @@ def top():
             = import_module_xls('.')
     cgmstream, cgm_device_name, cgm_device_id = \
             get_CGM_data('./CGM_data')
+            
+    basalstream = remove_nan_from_stream(basalstream)
+    bolusstream = remove_nan_from_stream(bolusstream)
+    bgstream = remove_nan_from_stream(bgstream)  
+    carbstream = remove_nan_from_stream(carbstream)
+    eventstream = remove_nan_from_stream(eventstream)
+    basaladjustream = remove_nan_from_stream(basaladjustream)
+    basaladjlstream = remove_nan_from_stream(basaladjlstream)
+    cgmstream = remove_nan_from_stream(cgmstream)
     # Need to generate minute by minute traces
     basal_trace = generate_basal_trace(basalstream)
     bg_trace = generate_bg_trace(bgstream)
+    cgm_trace = generate_bg_trace(cgmstream)
+    # combining the cgm and bg monitor data to get a trace which reflects the 
+    # gradient changes as seen on the CGM with the (hopefully) more acurate
+    # blood glucose readings of the bg monitor.
+    combined_trace = combine_data_streams(bgstream, bg_trace, cgm_trace)
+    # separate out the hypo samples and use them to calculate the time since the
+    # last hypo event.
     hypostream = separate_hypo_data(bgstream, levels[4])
     tm_lst_hypo = find_time_last_hypo(bg_trace, hypostream)
     tm_nxt_hypo = find_time_next_hypo(bg_trace, hypostream)
+    # using the carbstream to calculate the time since the last meal.
     tm_lst_carbs = find_time_last_carbs(bg_trace, carbstream)
     tm_nxt_carbs = find_time_next_carbs(bg_trace, carbstream)
     pre_meal_flg = add_pre_meal_flag(tm_nxt_carbs)
     post_meal_flg = add_post_meal_flag(tm_lst_carbs)
+    # Calculating the high limit for each data point as this changes 
+    #depending on the proximity of a meal.
+    hi_lim_val = finding_high_limit(tm_lst_carbs, levels[2])
+    # using the bolusstream to calculate the time since the last bolus 
+    #and  its value. 
     val_lst_bolus = find_val_last_bolus(bg_trace, bolusstream)
     tm_lst_bolus = find_time_last_bolus(bg_trace, bolusstream)
-    hi_lim_val = finding_high_limit(tm_lst_carbs, levels[2])
+
     state = finding_states(bg_trace, levels, hi_lim_val)
-    #print len(state)
     # Generating daily totals for the carbs, basal, and bolus.
     # The basal needs to use the trace as the raw data does not give duration
     # directly, only records changes applied.
@@ -446,109 +500,9 @@ def top():
 #    carb_dailys = get_daily_totals(carbstream)
     bg_day_min, bg_day_max, bg_day_mean, bg_day_std = daily_stats(bg_trace)
     state_streams = generate_state_streams(bg_trace, state)    
-    fracs = calc_fractions(state_streams)
+    plotting.main_plot(bgstream, state_streams, combined_trace, 
+              bg_day_min, bg_day_max, bg_day_mean, bg_day_std)
+    plotting.spare_plot(bgstream, basalstream, bolusstream)
     
-#    figure(5)
-#    plot(basal_dailys[0], basal_dailys[1])
-#    plot(bolus_dailys[0], bolus_dailys[1])
-#    plot(carb_dailys[0], carb_dailys[1])
-#    figure(6)
-    figure(7)
-    ax1 = axes([0.1, 0.5, 0.4, 0.45])
-    ax1.plot(bg_day_min[0], bg_day_min[1], 'r')
-    ax1.plot(bg_day_max[0], bg_day_max[1], 'b')
-    ax1.plot(bg_day_mean[0], bg_day_mean[1], 'ko')
-    ax1.set_ylabel('Blood Glucose (mg/mmol)')
-    ax1.set_title('Daily values')
-    st1 = remove_nan_from_stream(bgstream)
-    st2 = remove_nan_from_stream(state_streams[0])
-    ax2 = subplot(222)
-    hold(True)
-    ax2.plot(st1[0], st1[1])
-    ax2.fill_between(st2[0], st2[1], y2=4.0, facecolor='yellow')
-    ax2.fill_between(st2[0], st2[1], y2=3.7, facecolor='red')    
-#    ax2.fill_between(st2[0], st2[1], 8.0, facecolor='blue') 
-    ax2.set_xlim(st1[0][0], st1[0][0])
-    hold(False)
-    ax2.set_ylabel('Blood Glucose (mg/mmol)')
-    ax2.set_title('Blood glucose over time')
-    ax2.set_xlabel('Time')
-    ax3 = subplot(223)
-    data_len = len(bg_day_mean[0])
-    hold(True)
-    for  ihp in range(data_len):
-        col_val = ((data_len - (ihp-1))/data_len) * 0.6 + 0.4
-        sze = numpy.floor(((data_len - ihp)/data_len) * 7) + 3
-        ax3.plot(bg_day_std[1][ihp], bg_day_mean[1][ihp], 'o', \
-        markersize=sze,\
-        markeredgecolor= ((col_val, col_val, 1)), \
-        markerfacecolor= ((col_val, col_val, 1)))
-    ax3.plot([0, 14], [4, 4], 'r', [0, 14], [8, 8], 'b', \
-             [2.8, 2.8], [0, 14], ':k')
-    hold(False)    
-    ax3.set_ylabel('Standard deviation')
-    ax3.set_xlabel('Mean')
-    ax3.set_title('Stability')
-    ax4 = subplot(224)
-    ax4.set_aspect(1)
-    light_filter_pie(ax4, fracs)
-    ax4.set_title('Fraction of time in each state')
-    
-    figure(8)
-    ax5 = subplot(221)
-    num, bins, patches = ax5.hist(bgstream[1], 50, normed=1, \
-    facecolor='green', alpha=0.75)
-#    bincenters = 0.5*(bins[1:]+bins[:-1])
-    ax5.set_xlabel('bg TEST')
-    ax5.set_ylabel('Number of events')
-    ax6 = subplot(222)
-    num, bins, patches = ax6.hist(bolusstream[1], 50, normed=1, \
-    facecolor='green', alpha=0.75)
-#    bincenters = 0.5*(bins[1:]+bins[:-1])
-    ax6.set_xlabel('bolus TEST')
-    ax6.set_ylabel('Number of events')
-    ax7 = subplot(223)
-    num, bins, patches = ax7.hist(basalstream[1], 50, normed=1, \
-    facecolor='green', alpha=0.75)
-#    bincenters = 0.5*(bins[1:]+bins[:-1])
-    ax7.set_xlabel('basal TEST')
-    ax7.set_ylabel('Number of events')
-    
-#ax.set_title(r'$\mathrm{Histogram\ of\ IQ:}\ \mu=100,\ \sigma=15$')
-#    ax.set_xlim(40, 160)
-#    ax.set_ylim(0, 0.03)
-#    ax.grid(True)
-    
-#    pie(fracs)
-#    figure(3)
-#    plot(basalstream[0], basalstream[1])
-#    plot(basal_trace[0], array(basal_trace[1])*60.)
-#    figure(4)
-#    plot(bgstream[0], bgstream[1])
-#    plot(bg_trace[0], bg_trace[1])
-#    figure(1)
-#    plot(bolusstream[0], bolusstream[1])
-#    plot(basalstream[0], basalstream[1])
-#    plot(basaladjustream[0], basaladjustream[1])
-#    plot(basaladjlstream[0], basaladjlstream[1])
-#    plot(bgstream[0], bgstream[1])
-#    plot(carbstream[0], carbstream[1])
-#    figure(2)
-#    plot(bg_trace[0], hi_lim_val)
-#    plot(bg_trace[0], tm_lst_carbs)
-#    plot(bg_trace[0], tm_nxt_carbs)
-#    plot(bg_trace[0], tm_lst_bolus)
-#    if tm_lst_hypo != None:
-#        plot(bg_trace[0], tm_lst_hypo)
-#    plot(bg_trace[0], pre_meal_flg)
-#    plot(bg_trace[0], post_meal_flg)
-#    print len(bg_trace[0]), len(state)
-#    plot(bg_trace[0], state)
-#    plot(bg_trace[0], val_lst_bolus)
-#    legend(('hi_lim_val', 'tm_lst_carbs', 'tm_nxt_carbs', 'tm_lst_bolus',
-#            'tm_lst_hypo', 'pre_meal_flg', 'post_meal_flg',
-#            'state', 'val_lst_bolus'))
-    show()
-    #x = raw_input("Press Enter")
-    #print 'Done'
+
 top()

@@ -6,24 +6,23 @@ Created on Mon Sep 12 23:00:06 2011
 """
 from matplotlib.artist import Artist
 from matplotlib.colors import LightSource
-from numpy import   array, zeros_like, hanning, transpose, convolve, \
-                    asarray, roll, empty_like, r_
+import numpy
 from scipy import  zeros
 def smooth1d(x, window_len):
     # copied from http://www.scipy.org/Cookbook/SignalSmooth
 
-    s= r_[2*x[0]-x[window_len:1:-1],x,2*x[-1]-x[-1:-window_len:-1]]
-    w = hanning(window_len)
-    y= convolve(w/w.sum(),s,mode='same')
+    s= numpy.r_[2*x[0]-x[window_len:1:-1],x,2*x[-1]-x[-1:-window_len:-1]]
+    w = numpy.hanning(window_len)
+    y= numpy.convolve(w/w.sum(),s,mode='same')
     return y[window_len-1:-window_len+1]
 
 def smooth2d(A, sigma=3):
 
     window_len = max(int(sigma), 3)*2+1
-    A1 = array([smooth1d(x, window_len) for x in asarray(A)])
-    A2 = transpose(A1)
-    A3 = array([smooth1d(x, window_len) for x in A2])
-    A4 = transpose(A3)
+    A1 = numpy.array([smooth1d(x, window_len) for x in numpy.asarray(A)])
+    A2 = numpy.transpose(A1)
+    A3 = numpy.array([smooth1d(x, window_len) for x in A2])
+    A4 = numpy.transpose(A3)
 
     return A4
 
@@ -61,7 +60,7 @@ class GaussianFilter(BaseFilter):
 
     def process_image(self, padded_src, dpi):
         #offsetx, offsety = int(self.offsets[0]), int(self.offsets[1])
-        tgt_image = zeros_like(padded_src)
+        tgt_image = numpy.zeros_like(padded_src)
         aa = smooth2d(padded_src[:,:,-1]*self.alpha,
                       self.sigma/72.*dpi)
         tgt_image[:,:,-1] = aa
@@ -87,7 +86,7 @@ class LightFilter(BaseFilter):
         rgb2 = self.light_source.shade_rgb(rgb, elevation,
                                            fraction=self.fraction)
 
-        tgt = empty_like(padded_src)
+        tgt = numpy.empty_like(padded_src)
         tgt[:,:,:3] = rgb2
         tgt[:,:,3] = padded_src[:,:,3]
 
@@ -105,8 +104,8 @@ class OffsetFilter(BaseFilter):
 
     def process_image(self, padded_src, dpi):
         ox, oy = self.offsets
-        a1 = roll(padded_src, int(ox/72.*dpi), axis=1)
-        a2 = roll(a1, -int(oy/72.*dpi), axis=0)
+        a1 = numpy.roll(padded_src, int(ox/72.*dpi), axis=1)
+        a2 = numpy.roll(a1, -int(oy/72.*dpi), axis=0)
         return a2
 
 class DropShadowFilter(BaseFilter):
@@ -163,3 +162,16 @@ def light_filter_pie(ax, fracs):
     shadow = FilteredArtistList(pies[0], gauss)
     ax.add_artist(shadow)
     shadow.set_zorder(pies[0][0].get_zorder()-0.1)
+
+    
+def calc_fractions(data):
+    '''Calculating the fraction of samples in each state.'''
+    # total is hypo + OK + hyper states
+    total_samples = len(data[6][0]) + len(data[2][0]) + len(data[7][0]) 
+    frac_high3 = len(data[5][0]) *100. / total_samples
+    frac_high2 = len(data[4][0]) *100. / total_samples
+    frac_high1 = len(data[3][0]) *100. / total_samples
+    frac_ok    = len(data[2][0]) *100. / total_samples
+    frac_warn  = len(data[1][0]) *100. / total_samples
+    frac_low   = len(data[0][0]) *100. / total_samples
+    return [frac_low, frac_warn, frac_ok, frac_high1, frac_high2, frac_high3]
