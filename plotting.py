@@ -8,7 +8,7 @@ from matplotlib.pyplot import figure, show, hold, subplot, axes
 import plottinglib
 import numpy
 
-def main_plot(bgstream, state_streams, combined_trace, 
+def main_plot(bgstream, state_streams, combined_trace,
               bg_day_min, bg_day_max, bg_day_mean, bg_day_std):
     '''Generates the main overview plot.'''
     figure(7)
@@ -21,11 +21,11 @@ def main_plot(bgstream, state_streams, combined_trace,
     ax1.set_title('Daily values')
     ax2 = subplot(222)
     hold(True)
-    ax2.plot(bgstream[0], bgstream[1], 'k:', 
-             combined_trace[0], combined_trace[1], 'k-')
+    ax2.plot(bgstream[0], bgstream[1], 'k:')
     ax2.fill_between(bgstream[0], bgstream[1], y2=4.0, facecolor='yellow')
     ax2.fill_between(bgstream[0], bgstream[1], y2=3.7, facecolor='red')    
 #    ax2.fill_between(st2[0], st2[1], 8.0, facecolor='blue') 
+    ax2.plot(combined_trace[0], combined_trace[1], 'g-')
     ax2.set_xlim(bgstream[0][0], bgstream[0][-1])
     hold(False)
     ax2.set_ylabel('Blood Glucose (mg/mmol)')
@@ -74,7 +74,16 @@ def spare_plot(bgstream, basalstream, bolusstream):
     ax7.set_xlabel('basal TEST')
     ax7.set_ylabel('Number of events')
   
-
+def comp_plot(bgstream, combined_trace, CGMstream):
+    '''Generates a plot to show how the traces are combined.'''
+    figure(9)
+    ax1 = axes([0.05, 0.05, 0.9, 0.9])
+    hold(True)
+    ax1.plot(bgstream[0], bgstream[1], 'r')
+    ax1.plot(CGMstream[0], CGMstream[1], 'b')
+    ax1.plot(combined_trace[0], combined_trace[1], 'k')
+    ax1.set_ylabel('Blood Glucose (mg/mmol)')
+    ax1.set_title('Time')
 #    figure(5)
 #    plot(basal_dailys[0], basal_dailys[1])
 #    plot(bolus_dailys[0], bolus_dailys[1])

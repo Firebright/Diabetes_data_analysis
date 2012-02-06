@@ -217,26 +217,46 @@ def find_ind(data, tik, step):
     high = tik + step/2.
     ind1 = numpy.nonzero(numpy.array(data) > low)
     ind2 = numpy.nonzero(numpy.array(data) <= high)
-    if not ind1 or not ind2:
+    if len(ind1) == 0 or len(ind2) == 0:
         return None
-    return numpy.intersect1d(ind1[0], ind2[0])[0]
+    com = numpy.intersect1d(ind1[0], ind2[0])
+    if len(com) == 0:
+        return None
+    return com[0]
 
 def intialise_trace(data):
-    '''Sets up the timebase of the trace an a placeholder list of nan for the 
+    '''Sets up the timebase of the trace and a placeholder list of nan for the 
     data to go into.'''
     #length of sample time in seconds
-    data_length = etime(data[0][-1], data[0][0])
     data_start_time = round2minute(data[0][0])
+    data_end_time = round2minute(data[0][-1])    
+    data_length = etime(data_end_time, data_start_time)
+    print 'day start', data_start_time, 'day end', data_end_time, 'day length', data_length
     data_time_axis = data_start_time + \
         numpy.linspace(0,data_length-1,data_length/60)
-    # making sure no small fractions of a second have been added to the
-    # timestamps!
-    data_time_axis = round2minute(data_time_axis)
     data_time_axis = data_time_axis.flatten().tolist()
     # setting initial values
     trace = numpy.ones((len(data_time_axis), 1)) * numpy.nan
     trace = trace.flatten().tolist()
     return data_time_axis, trace
+    
+def find_interp_val(start_time, end_time, req_time, start_val, end_val):
+    '''Will return the linearly interpolated value 
+    at the requested timestamp.'''  
+    elapsed = end_time - start_time
+    sel_time = req_time - start_time
+    val_change = start_val - end_val
+    req_val = start_val + (sel_time / elapsed) * val_change
+    return req_val
+
+def find_interp_time(start_time, end_time, start_val, end_val, req_val):
+    '''Will return the linearly interpolated time
+    for the requested value.'''
+    elapsed = end_time - start_time
+    val_change = end_val - start_val
+    sel_val = req_val - start_val    
+    req_time = start_time + (sel_val / val_change) * elapsed
+    return req_time
     
 def generate_bg_trace(bg_data):
     '''Outputs the bg data on a minute by minute basis 
@@ -259,6 +279,29 @@ def generate_bg_trace(bg_data):
             if start_val != None and end_val != None:
                 bg_trace[start_ind + hes] = start_val + (increment * hes)
     return [data_time_axis, bg_trace]
+
+def generate_trace(stream):
+    '''Outputs the data on a minute by minute basis 
+    using linear interpolation where neccessary.''' 
+    if not stream:
+        return None
+    data_time_axis, trace = intialise_trace(stream)
+    print 'time axis', data_time_axis[0]
+    for mwg in range(len(stream[0])-1):
+        # find the start and end times of the current event
+        start_time = stream[0][mwg]
+        end_time   = stream[0][mwg + 1]
+        start_val  = stream[1][mwg]
+        end_val    = stream[1][mwg + 1]
+        num_steps  = int(round(etime(end_time, start_time))/60.)
+        step = 120
+        increment = (end_val - start_val)/ num_steps
+        start_ind = find_ind(data_time_axis, start_time, step/2.)
+        for hes in range(num_steps):
+            # Adding linearly interpolated values to the trace.
+            if start_val != None and end_val != None:
+                trace[start_ind + hes] = start_val + (increment * hes)
+    return [data_time_axis, trace]
 
 def generate_basal_trace(basal_data):
     '''outputs the basal dose on a minute by minute basis.'''
@@ -304,14 +347,14 @@ def get_daily_totals(data):
         data_out.append(sum(data[1][day_start:day_end]))
     return [time_out, data_out]
 
-def daily_stats(trace):
+def daily_stats(stream):
     '''outputs the max, min, mean, std value for each day in the datastream.'''
-    if not trace:
+    if not stream:
         return [None, None], [None, None], [None, None], [None, None]
     else:
-        for kse in range(len(trace[0])):
-            trace[0][kse] = trace[0][kse]/86400.
-        day_breaks = numpy.nonzero(numpy.diff(numpy.floor(trace[0])) != 0)
+        for kse in range(len(stream[0])):
+            stream[0][kse] = stream[0][kse]
+        day_breaks = numpy.nonzero(numpy.diff(numpy.floor(stream[0]/86400.)) != 0)
         day_breaks = day_breaks[0]
         time_out = []
         means = []
@@ -325,12 +368,14 @@ def daily_stats(trace):
             else:
                 day_start = day_breaks[nse-1] + 1
                 day_end = day_breaks[nse]
-            time_out.append(trace[0][day_start])
-            day_data = trace[1][day_start:day_end]
-            means.append(numpy.mean(numpy.array(day_data)))
+            time_out.append(stream[0][day_start])
+            day_data = stream[1][day_start:day_end]
+            time_data = stream[0][day_start:day_end]
             day_max.append(max(day_data))
             day_min.append(min(day_data))
-            st_dev.append(numpy.std(numpy.array(day_data)))
+            trace = generate_trace([time_data, day_data])
+            st_dev.append(numpy.std(numpy.array(trace[1])))
+            means.append(numpy.mean(numpy.array(trace[1])))
     return [time_out, day_min], [time_out, day_max], \
             [time_out, means], [time_out, st_dev]
 
@@ -344,7 +389,7 @@ def generate_state_streams(bg_data, state):
            [t_high1, high1], [t_high2, high2], [t_high3, high3],
             [t_hypo, hypo], [t_hyper, hyper]]
 
-def combine_data_streams(samples, bg_data, CGM_data):
+def combine_data_streams(samples, CGM_data):
     '''using the bg data from the monitor to pin the CGM data 
     (assumes bg monitor is more reliable than the CGM)'''
     if not CGM_data or not samples:
@@ -354,45 +399,37 @@ def combine_data_streams(samples, bg_data, CGM_data):
         for hs in range(len(samples[0])-1):
             sample_start = samples[0][hs]
             sample_end = samples[0][hs+1]
-            tmp_start = numpy.nonzero(CGM_data[0] == sample_start)
-            tmp_end = numpy.nonzero(CGM_data[0] ==  sample_end)
-            if tmp_end - tmp_start > 0:
-                # difference between samples and CGM data
-                diff1 = samples[1][hs] - CGM_data[1][tmp_start]
-                diff2 = samples[hs + 1, 1] - CGM_data[1][tmp_end]
-                temp = CGM_data[1][tmp_start:tmp_end]
-                # initially shift everything down by diff1
-                temp = temp + diff1
-                #then compress so get diff2 == 0
-                # Assumes difference is distributed linearly along range.
-                for hm in range(tmp_end-tmp_start + 1):
-                    temp[hm] = temp(hm) + \
-                        ((diff2 - diff1) * (hm - 1) / (tmp_end - tmp_start))
-                combined_data[1][tmp_start:tmp_end] = temp
-       # # find the earlyst reading between bg_data and combined
-        #if bg_data[0][0] < combined_data[0][0]:
-         #   st = round2minute(bg_data[0][0])
-       # else:
-         #   st = round2minute(combined_data[0][0])
-       # # find the latest reading between bg_data and combined
-        #if bg_data[0][-1] > combined_data[0][-1]:
-         #   ed = round2minute(bg_data[0][-1])
-       # else:
-         #   ed = round2minute(combined_data[0][-1]])
-        #lth = round((ed -st)*24*60)
-        #tmp = zeros((lth,2))
-        #cb = round2minute(combined_data[0])
-        #twn = round2minute(bg_data[0])
-        #for osf in range(lth):
-           # ih =  nonzero( abs(cb - (st + (osf-1)/(24*60))) < 1E-8)
-            #if ih:
-              #  tmp[osf,:] = combined_data[ih,:]
-           # else:
-             #   ih =  nonzero(abs(twn - (st + (osf-1)/(24*60))) < 1E-8)
-              #  if not ih:
-              #      tmp[osf,:] = tw.bg_data[ih,:]
-       # combined_data = tmp
-    return combined_data
+            tmp = numpy.array(numpy.nonzero(CGM_data[0] <= sample_start))
+            tmp_start1 = tmp[0][-1]
+            tmp = numpy.array(numpy.nonzero(CGM_data[0] >= sample_start))
+            tmp_end1 = tmp[0][0]
+            cgm_st_val = find_interp_val(CGM_data[0][tmp_start1], 
+                                     CGM_data[0][tmp_end1], sample_start,
+                                     CGM_data[1][tmp_start1], 
+                                     CGM_data[1][tmp_end1])
+            tmp = numpy.array(numpy.nonzero(CGM_data[0] <= sample_end))
+            tmp_start2 = tmp[0][-1]
+            tmp = numpy.array(numpy.nonzero(CGM_data[0] >=  sample_end))
+            tmp_end2 = tmp[0][0]
+            cgm_end_val = find_interp_val(CGM_data[0][tmp_start2], 
+                                     CGM_data[0][tmp_end2], sample_start,
+                                     CGM_data[1][tmp_start2], 
+                                     CGM_data[1][tmp_end2])
+            # difference between samples and CGM data
+            diff1 = samples[1][hs] - cgm_st_val
+            diff2 = samples[1][hs + 1] - cgm_end_val - diff1
+            temp = CGM_data[1][tmp_end1:tmp_start2]
+            temp_time = CGM_data[0][tmp_end1:tmp_start2]
+            # initially shift everything down by diff1
+            temp = temp + diff1
+            #then compress so get diff2 == 0
+            # Assumes difference is distributed linearly along range.
+            for hm in range(len(temp)):
+                correction = diff2 * (temp_time[hm] - sample_start) / \
+                                     (sample_end - sample_start)
+                temp[hm] = temp[hm] + correction
+            combined_data[1][tmp_end1:tmp_start2] = temp
+        return combined_data
 
 def unique_list(seq):
     '''Return the unique values in a list.'''
@@ -456,31 +493,37 @@ def top():
             = import_module_xls('.')
     cgmstream, cgm_device_name, cgm_device_id = \
             get_CGM_data('./CGM_data')
-            
+    print 'Data extracted from files'      
     basalstream = remove_nan_from_stream(basalstream)
     bolusstream = remove_nan_from_stream(bolusstream)
     bgstream = remove_nan_from_stream(bgstream)  
-    carbstream = remove_nan_from_stream(carbstream)
-    eventstream = remove_nan_from_stream(eventstream)
-    basaladjustream = remove_nan_from_stream(basaladjustream)
-    basaladjlstream = remove_nan_from_stream(basaladjlstream)
-    cgmstream = remove_nan_from_stream(cgmstream)
+    bgstream[0] = numpy.array(round2minute(numpy.array(bgstream[0])))
+    #cgmstream[0] = numpy.array(round2minute(numpy.array(cgmstream[0])))
+    print 'Streams conditioned'
+#    carbstream = remove_nan_from_stream(carbstream)
+#    eventstream = remove_nan_from_stream(eventstream)
+#    basaladjustream = remove_nan_from_stream(basaladjustream)
+#    basaladjlstream = remove_nan_from_stream(basaladjlstream)
+#    cgmstream = remove_nan_from_stream(cgmstream)
     # Need to generate minute by minute traces
-    basal_trace = generate_basal_trace(basalstream)
-    bg_trace = generate_bg_trace(bgstream)
-    cgm_trace = generate_bg_trace(cgmstream)
+   # basal_trace = generate_basal_trace(basalstream)
+   # bg_trace = generate_bg_trace(bgstream)
+   # cgm_trace = generate_bg_trace(cgmstream)
+    print 'Traces generated'
     # combining the cgm and bg monitor data to get a trace which reflects the 
     # gradient changes as seen on the CGM with the (hopefully) more acurate
     # blood glucose readings of the bg monitor.
-    combined_trace = combine_data_streams(bgstream, bg_trace, cgm_trace)
+    combinedstream = combine_data_streams(bgstream, cgmstream)
+    print 'Traces combined'    
+    print len(combinedstream[0])    
     # separate out the hypo samples and use them to calculate the time since the
     # last hypo event.
     hypostream = separate_hypo_data(bgstream, levels[4])
-    tm_lst_hypo = find_time_last_hypo(bg_trace, hypostream)
-    tm_nxt_hypo = find_time_next_hypo(bg_trace, hypostream)
+    tm_lst_hypo = find_time_last_hypo(combinedstream, hypostream)
+    tm_nxt_hypo = find_time_next_hypo(combinedstream, hypostream)
     # using the carbstream to calculate the time since the last meal.
-    tm_lst_carbs = find_time_last_carbs(bg_trace, carbstream)
-    tm_nxt_carbs = find_time_next_carbs(bg_trace, carbstream)
+    tm_lst_carbs = find_time_last_carbs(combinedstream, carbstream)
+    tm_nxt_carbs = find_time_next_carbs(combinedstream, carbstream)
     pre_meal_flg = add_pre_meal_flag(tm_nxt_carbs)
     post_meal_flg = add_post_meal_flag(tm_lst_carbs)
     # Calculating the high limit for each data point as this changes 
@@ -488,21 +531,25 @@ def top():
     hi_lim_val = finding_high_limit(tm_lst_carbs, levels[2])
     # using the bolusstream to calculate the time since the last bolus 
     #and  its value. 
-    val_lst_bolus = find_val_last_bolus(bg_trace, bolusstream)
-    tm_lst_bolus = find_time_last_bolus(bg_trace, bolusstream)
+    val_lst_bolus = find_val_last_bolus(combinedstream, bolusstream)
+    tm_lst_bolus = find_time_last_bolus(combinedstream, bolusstream)
 
-    state = finding_states(bg_trace, levels, hi_lim_val)
+    state = finding_states(combinedstream, levels, hi_lim_val)
     # Generating daily totals for the carbs, basal, and bolus.
     # The basal needs to use the trace as the raw data does not give duration
     # directly, only records changes applied.
-    basal_dailys = get_daily_totals(basal_trace)
+    #basal_dailys = get_daily_totals(basal_trace)
     bolus_dailys = get_daily_totals(bolusstream)
 #    carb_dailys = get_daily_totals(carbstream)
-    bg_day_min, bg_day_max, bg_day_mean, bg_day_std = daily_stats(bg_trace)
-    state_streams = generate_state_streams(bg_trace, state)    
-    plotting.main_plot(bgstream, state_streams, combined_trace, 
+    bg_day_min, bg_day_max, bg_day_mean, bg_day_std = daily_stats(
+    combinedstream)
+    state_streams = generate_state_streams(combinedstream, state)    
+    print 'Data analysed'
+    plotting.main_plot(bgstream, state_streams, combinedstream, 
               bg_day_min, bg_day_max, bg_day_mean, bg_day_std)
-    plotting.spare_plot(bgstream, basalstream, bolusstream)
+  #  plotting.spare_plot(bgstream, basalstream, bolusstream)
+    plotting.comp_plot(bgstream, combinedstream, cgmstream)
+    print 'Data plotted'
     
 
 top()
