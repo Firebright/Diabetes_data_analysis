@@ -211,6 +211,14 @@ def round2minute(val_in):
         val_out = val_out.flatten().tolist()
     return val_out
 
+def roundstream2minute(stream):
+    '''Rounds the timestamps in a stream to the nearest minute.'''
+    print 'Round input',numpy.shape(stream)
+    times = stream[0,:]
+    data = stream[1,:]
+    times = numpy.round(times /60.) * 60.
+    return numpy.vstack((times, data))
+
 def find_ind(data, tik, step):
     '''Finds the index where ti is between +- step/2.'''
     low = tik - step/2.
@@ -231,7 +239,7 @@ def intialise_trace(data):
     data_start_time = round2minute(data[0][0])
     data_end_time = round2minute(data[0][-1])    
     data_length = etime(data_end_time, data_start_time)
-    print 'day start', data_start_time, 'day end', data_end_time, 'day length', data_length
+    #print 'day start', data_start_time, 'day end', data_end_time, 'day length', data_length
     data_time_axis = data_start_time + \
         numpy.linspace(0,data_length-1,data_length/60)
     data_time_axis = data_time_axis.flatten().tolist()
@@ -276,7 +284,7 @@ def generate_bg_trace(bg_data):
         start_ind = find_ind(data_time_axis, start_time, step/2.)
         for hes in range(num_steps):
             # Adding linearly interpolated values to the trace.
-            if start_val != None and end_val != None:
+            if start_val != None and end_val != None and start_ind !=None:
                 bg_trace[start_ind + hes] = start_val + (increment * hes)
     return [data_time_axis, bg_trace]
 
@@ -286,7 +294,7 @@ def generate_trace(stream):
     if not stream:
         return None
     data_time_axis, trace = intialise_trace(stream)
-    print 'time axis', data_time_axis[0]
+   # print 'time axis', data_time_axis[0]
     for mwg in range(len(stream[0])-1):
         # find the start and end times of the current event
         start_time = stream[0][mwg]
@@ -299,7 +307,8 @@ def generate_trace(stream):
         start_ind = find_ind(data_time_axis, start_time, step/2.)
         for hes in range(num_steps):
             # Adding linearly interpolated values to the trace.
-            if start_val != None and end_val != None:
+           # print start_val, end_val, hes, increment, start_ind
+            if start_val != None and end_val != None and start_ind != None:
                 trace[start_ind + hes] = start_val + (increment * hes)
     return [data_time_axis, trace]
 
@@ -392,27 +401,32 @@ def generate_state_streams(bg_data, state):
 def combine_data_streams(samples, CGM_data):
     '''using the bg data from the monitor to pin the CGM data 
     (assumes bg monitor is more reliable than the CGM)'''
+    print 'input streams', numpy.shape(samples), numpy.shape(CGM_data)
     if not CGM_data or not samples:
         combined_data = None
     else:
-        combined_data = CGM_data
+        combined_data = copy.copy(CGM_data)
         for hs in range(len(samples[0])-1):
             sample_start = samples[0][hs]
             sample_end = samples[0][hs+1]
-            tmp = numpy.array(numpy.nonzero(CGM_data[0] <= sample_start))
-            tmp_start1 = tmp[0][-1]
-            tmp = numpy.array(numpy.nonzero(CGM_data[0] >= sample_start))
-            tmp_end1 = tmp[0][0]
+            # Finds the CGM datapoints either side of the first BG data point.
+            tmp1 = numpy.array(numpy.nonzero(CGM_data[0] <= sample_start))
+            tmp_start1 = tmp1[0][-1]
+            tmp2 = numpy.array(numpy.nonzero(CGM_data[0] >= sample_start))
+            tmp_end1 = tmp2[0][0]
+            #Finds the interpolated CGM value at the BG data point.
             cgm_st_val = find_interp_val(CGM_data[0][tmp_start1], 
                                      CGM_data[0][tmp_end1], sample_start,
                                      CGM_data[1][tmp_start1], 
                                      CGM_data[1][tmp_end1])
-            tmp = numpy.array(numpy.nonzero(CGM_data[0] <= sample_end))
-            tmp_start2 = tmp[0][-1]
-            tmp = numpy.array(numpy.nonzero(CGM_data[0] >=  sample_end))
-            tmp_end2 = tmp[0][0]
+            # Finds the CGM datapoints either side of the first BG data point.
+            tmp3 = numpy.array(numpy.nonzero(CGM_data[0] <= sample_end))
+            tmp_start2 = tmp3[0][-1]
+            tmp4 = numpy.array(numpy.nonzero(CGM_data[0] >=  sample_end))
+            tmp_end2 = tmp4[0][0]
+             #Finds the interpolated CGM value at the BG data point.
             cgm_end_val = find_interp_val(CGM_data[0][tmp_start2], 
-                                     CGM_data[0][tmp_end2], sample_start,
+                                     CGM_data[0][tmp_end2], sample_end,
                                      CGM_data[1][tmp_start2], 
                                      CGM_data[1][tmp_end2])
             # difference between samples and CGM data
@@ -427,8 +441,7 @@ def combine_data_streams(samples, CGM_data):
             for hm in range(len(temp)):
                 correction = diff2 * (temp_time[hm] - sample_start) / \
                                      (sample_end - sample_start)
-                temp[hm] = temp[hm] + correction
-            combined_data[1][tmp_end1:tmp_start2] = temp
+                combined_data[1][tmp_end1 + hm] = temp[hm] + correction
         return combined_data
 
 def unique_list(seq):
@@ -460,17 +473,21 @@ def separate_states(bg_data, state):
     hypo = warn + low
     return high3, high2, high1, okay, warn, low, hyper, hypo
     
-def remove_nan_from_stream(data_in):
+def remove_nan_from_stream(data):
     '''Remove data points where the data is nan
-    (so also removes the timestamp)'''
-    time_out = []    
-    data_out = []
-    for hst in range(len(data_in[0])):
-        if not numpy.isnan(data_in[0][hst]) and not \
-                numpy.isnan(data_in[1][hst]):
-            data_out.append(data_in[1][hst])
-            time_out.append(data_in[0][hst])
-    return [time_out, data_out]
+    (so also removes the timestamp)'''   
+    tmp = numpy.isnan(data)
+    inds = numpy.nonzero(tmp == True)
+    print 'Nan stream size', numpy.shape(inds[1])
+    print numpy.shape(data)
+    numpy.delete(data, inds[1], 1)
+    print numpy.shape(data)
+  #  for hst in range(len(data_in[0])):
+   #     if not numpy.isnan(data_in[0][hst]) and not \
+    #            numpy.isnan(data_in[1][hst]):
+     #       data_out.append(data_in[1][hst])
+      #      time_out.append(data_in[0][hst])
+    return data
     
 def remove_nan_from_list(data_in):
     '''Removes nan from a list of numbers'''
@@ -493,11 +510,12 @@ def top():
             = import_module_xls('.')
     cgmstream, cgm_device_name, cgm_device_id = \
             get_CGM_data('./CGM_data')
-    print 'Data extracted from files'      
+    print 'Data extracted from files'    
+    print numpy.shape(bgstream)
     basalstream = remove_nan_from_stream(basalstream)
     bolusstream = remove_nan_from_stream(bolusstream)
-    bgstream = remove_nan_from_stream(bgstream)  
-    bgstream[0] = numpy.array(round2minute(numpy.array(bgstream[0])))
+    bgstream = remove_nan_from_stream(bgstream) 
+    bgstream = roundstream2minute(bgstream)
     #cgmstream[0] = numpy.array(round2minute(numpy.array(cgmstream[0])))
     print 'Streams conditioned'
 #    carbstream = remove_nan_from_stream(carbstream)
@@ -514,8 +532,9 @@ def top():
     # gradient changes as seen on the CGM with the (hopefully) more acurate
     # blood glucose readings of the bg monitor.
     combinedstream = combine_data_streams(bgstream, cgmstream)
+    print numpy.array(cgmstream) - numpy.array(combinedstream)
     print 'Traces combined'    
-    print len(combinedstream[0])    
+   # print len(combinedstream[0])    
     # separate out the hypo samples and use them to calculate the time since the
     # last hypo event.
     hypostream = separate_hypo_data(bgstream, levels[4])

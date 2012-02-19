@@ -273,5 +273,6 @@ def xls_condition_input(date_in, time_in, data_in):
     ts_out , indices = numpy.unique(numpy.array(ts_out), return_index=True)
     data_out = numpy.array(data_out)[indices]
     indices2 = numpy.argsort(ts_out)
-    stream = [ts_out[indices2], data_out[indices2]]
+    stream = numpy.vstack((ts_out[indices2], data_out[indices2]))
+    print numpy.shape(ts_out), numpy.shape(data_out), numpy.shape(stream)
     return stream

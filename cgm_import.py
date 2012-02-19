@@ -71,7 +71,7 @@ def get_CGM_data(dir_path):
         out = [[row[i] for row in out] for i in range(len(out[0]))]  
     timestamps, values, device_name, device_id = \
      CGM_data_extraction(out)
-    return [numpy.array(timestamps), numpy.array(values)], \
+    return numpy.vstack((numpy.array(timestamps), numpy.array(values))), \
             device_name, device_id
     
 
