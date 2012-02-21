@@ -39,108 +39,142 @@ def add_post_meal_flag(tm_lst_carbs):
             post_meal_flg.append(0)
     return post_meal_flg
 
-def find_time_next_carbs(bg_data, carbs_data):
-    '''Finds how long until the next carbs for each bg data point.'''
-    tm_nxt_carbs = []
-    for ruh in range(len(bg_data[0])):    
-        # find the index of the last meal
-        next_carb_ind = numpy.nonzero(carbs_data[0] > bg_data[0][ruh])
-        if len(next_carb_ind[0]) >0:
-            if next_carb_ind[0][0]:
-                # Time until last meal (in seconds).
-                tm_nxt_carbs.append(bg_data[0][ruh] - 
-                                carbs_data[0][next_carb_ind[0][0]])
+#def find_time_next_carbs(bg_data, carbs_data):
+#    '''Finds how long until the next carbs for each bg data point.'''
+#    tm_nxt_carbs = []
+#    for ruh in range(len(bg_data[0])):    
+#        # find the index of the last meal
+#        next_carb_ind = numpy.nonzero(carbs_data[0] > bg_data[0][ruh])
+#        if len(next_carb_ind[0]) >0:
+#            if next_carb_ind[0][0]:
+#                # Time until last meal (in seconds).
+#                tm_nxt_carbs.append(bg_data[0][ruh] - 
+#                                carbs_data[0][next_carb_ind[0][0]])
+#            else:
+#                tm_nxt_carbs.append(numpy.nan)
+#        else:
+#            tm_nxt_carbs.append(numpy.nan)          
+#    return tm_nxt_carbs
+#    
+#def find_time_next_hypo(bg_data, hypo_data):
+#    '''Finds how long until the next hypo for each bg data point.'''
+#    tm_nxt_hypo = []
+#    if hypo_data.shape[1] == 0:
+#        return None
+#    else:
+#        for ruh in range(bg_data.shape[1]):    
+#            # find the index of the last meal
+#            next_hypo_ind = numpy.nonzero(hypo_data > bg_data[0, ruh])[0]
+#            if len(next_hypo_ind) == 0:
+#                tm_nxt_hypo.append(numpy.nan)
+#            else:
+#                # Time until last meal (in seconds).
+#                tm_nxt_hypo.append(bg_data[0, ruh] - 
+#                                   hypo_data[next_hypo_ind[0]])
+#        return numpy.array(tm_nxt_hypo)
+#        
+def find_time_next(ref_data, ev_data):
+    '''Finds how long until the next event in ev_data for each bg data point.'''
+    tm_nxt = []
+    if ev_data.shape[1] == 0:
+        return None
+    else:
+        for ruh in range(ref_data.shape[1]):    
+            # find the index of the last meal
+            next_ind = numpy.nonzero(ev_data > ref_data[0, ruh])[0]
+            if len(next_ind) == 0:
+                tm_nxt.append(numpy.nan)
             else:
-                tm_nxt_carbs.append(numpy.nan)
-        else:
-            tm_nxt_carbs.append(numpy.nan)          
-    return tm_nxt_carbs
+                # Time until last meal (in seconds).
+                tm_nxt.append(ref_data[0, ruh] - ev_data[0, next_ind[0]])
+        return numpy.array(tm_nxt)
 
-def find_time_last_carbs(bg_data, carbs_data):
-    '''Finds how long ago carbs we easten for each bg data point.'''
-    tm_lst_carbs = []
-    for ruh in range(len(bg_data[0])):    
-        # find the index of the last meal
-        last_carb_ind = numpy.nonzero(carbs_data[0] < bg_data[0][ruh])
-        if len(last_carb_ind[0]) == 0:
-            tm_lst_carbs.append(numpy.nan)
-        else:
-            # Time until last meal (in seconds).
-            tm_lst_carbs.append(bg_data[0][ruh] - 
-                                carbs_data[0][last_carb_ind[0][-1]])
-    return tm_lst_carbs
 
+#def find_time_last_carbs(bg_data, carbs_data):
+#    '''Finds how long ago carbs we easten for each bg data point.'''
+#    tm_lst_carbs = []
+#    for ruh in range(bg_data.shape[1]):    
+#        # find the index of the last meal
+#        last_carb_ind = numpy.nonzero(carbs_data[0, :] < bg_data[0, ruh])
+#        if len(last_carb_ind[0]) == 0:
+#            tm_lst_carbs.append(numpy.nan)
+#        else:
+#            # Time until last meal (in seconds).
+#            tm_lst_carbs.append(bg_data[0, ruh] - 
+#                                carbs_data[0, last_carb_ind[0][-1]])
+#    return numpy.array(tm_lst_carbs)
+
+def find_time_last(ref_data, ev_data):
+    '''Finds how long ago since the last hypo for each bg data point.'''
+    tm_lst = []
+    if ev_data.shape[1] == 0:
+        return None
+    else:
+        for ruh in range(ref_data.shape[1]):    
+            # find the index of the last meal
+            last_ind = numpy.nonzero(ev_data[0, :] < ref_data[0, ruh])[0]
+            if len(last_ind) == 0:
+                tm_lst.append(numpy.nan)
+            else:
+                # Time until last meal (in seconds).
+              #  print type(ev_data[0, last_ind[-1]])
+                tm_lst.append(ref_data[0, ruh] - ev_data[0, last_ind[-1]])
+        return numpy.array(tm_lst)
+
+#def find_time_last_hypo(bg_data, hypo_data):
+#    '''Finds how long ago since the last hypo for each bg data point.'''
+#    tm_lst_hypo = []
+#    if len(hypo_data) == 0:
+#        return None
+#    else:
+#        for ruh in range(bg_data.shape[1]):    
+#            # find the index of the last meal
+#            last_hypo_ind = numpy.nonzero(hypo_data < bg_data[0, ruh])[0]
+#            if len(last_hypo_ind) == 0:
+#                tm_lst_hypo.append(numpy.nan)
+#            else:
+#                # Time until last meal (in seconds).
+#                tm_lst_hypo.append(bg_data[0, ruh] - 
+#                                   hypo_data[last_hypo_ind[-1]])
+#        return numpy.array(tm_lst_hypo)
+#    
+#def find_time_last_bolus(bg_data, bolus_data):
+#    '''Finds how long ago since the last bolus for each bg data point.'''
+#    tm_lst_bolus = []
+#    for ruh in range(len(bg_data[0])):    
+#        # find the index of the last meal
+#        last_bolus_ind = numpy.nonzero(bolus_data[0] < bg_data[0][ruh])
+#        if len(last_bolus_ind[0]) == 0:
+#            tm_lst_bolus.append(numpy.nan)
+#        else:
+#            # Time until last bolus (in seconds).
+#            tm_lst_bolus.append(bg_data[0][ruh] - 
+#                                bolus_data[0][last_bolus_ind[0][-1]])
+#    return tm_lst_bolus
+    
 def separate_hypo_data(bg_data, low_lim):
     '''Generate a list of hypo events'''
-    hypo_data = numpy.array(bg_data[0])[numpy.nonzero(bg_data[1] < low_lim)[0]]
-    hypo_data.flatten().tolist()
+    hypo_data = bg_data[:, numpy.nonzero(bg_data[1, :] < low_lim)[0]]
+    print 'Size of hypo data', hypo_data.shape
     return hypo_data
         
-def find_time_next_hypo(bg_data, hypo_data):
-    '''Finds how long until the next hypo for each bg data point.'''
-    tm_nxt_hypo = []
-    if len(hypo_data) == 0:
-        return None
-    else:
-        for ruh in range(len(bg_data[0])):    
-            # find the index of the last meal
-            next_hypo_ind = numpy.nonzero(hypo_data > bg_data[0][ruh])[0]
-            if len(next_hypo_ind) == 0:
-                tm_nxt_hypo.append(numpy.nan)
-            else:
-                # Time until last meal (in seconds).
-                tm_nxt_hypo.append(bg_data[0][ruh] - 
-                                   hypo_data[next_hypo_ind[0]])
-        return tm_nxt_hypo
-
-def find_time_last_hypo(bg_data, hypo_data):
-    '''Finds how long ago since the last hypo for each bg data point.'''
-    tm_lst_hypo = []
-    if len(hypo_data) == 0:
-        return None
-    else:
-        for ruh in range(len(bg_data[0])):    
-            # find the index of the last meal
-            last_hypo_ind = numpy.nonzero(hypo_data < bg_data[0][ruh])[0]
-            if len(last_hypo_ind) == 0:
-                tm_lst_hypo.append(numpy.nan)
-            else:
-                # Time until last meal (in seconds).
-                tm_lst_hypo.append(bg_data[0][ruh] - 
-                                   hypo_data[last_hypo_ind[-1]])
-        return tm_lst_hypo
-    
-def find_val_last_bolus(bg_data, bolus_data):
-    '''Finds the value of the last bolus for each bg data point.'''
-    val_lst_bolus = []
-    for ruh in range(len(bg_data[0])):    
+def find_val_last(ref_data, ev_data):
+    '''Finds the value of the last event in ev_data for each bg data point.'''
+    val_lst = []
+    for ruh in range(ref_data.shape[1]):    
         # find the index of the last meal
-        last_bolus_ind = numpy.nonzero(bolus_data[0] < bg_data[0][ruh])
-        if len(last_bolus_ind[0]) == 0:
-            val_lst_bolus.append(numpy.nan)
+        last_ind = numpy.nonzero(ev_data[0, :] < ref_data[0, ruh])
+        if len(last_ind[0]) == 0:
+            val_lst.append(numpy.nan)
         else:
-            val_lst_bolus.append(bolus_data[1][last_bolus_ind[0][-1]])
-    return val_lst_bolus
-
-def find_time_last_bolus(bg_data, bolus_data):
-    '''Finds how long ago since the last bolus for each bg data point.'''
-    tm_lst_bolus = []
-    for ruh in range(len(bg_data[0])):    
-        # find the index of the last meal
-        last_bolus_ind = numpy.nonzero(bolus_data[0] < bg_data[0][ruh])
-        if len(last_bolus_ind[0]) == 0:
-            tm_lst_bolus.append(numpy.nan)
-        else:
-            # Time until last bolus (in seconds).
-            tm_lst_bolus.append(bg_data[0][ruh] - 
-                                bolus_data[0][last_bolus_ind[0][-1]])
-    return tm_lst_bolus
+            val_lst.append(ev_data[1][last_ind[0][-1]])
+    return numpy.array(val_lst)
     
 def finding_high_limit(tm_lst_carbs, hi_lim):
     '''Calculating the effective high limit once recent carb intake 
     has been accounted for.'''
     ## setting the hi limit
-    if not tm_lst_carbs:
+    if tm_lst_carbs.shape[0] == 0:
         return None
     else:
         hi_lim_val = []
@@ -214,9 +248,9 @@ def round2minute(val_in):
 def roundstream2minute(stream):
     '''Rounds the timestamps in a stream to the nearest minute.'''
     print 'Round input',numpy.shape(stream)
-    times = stream[0,:]
-    data = stream[1,:]
-    times = numpy.round(times /60.) * 60.
+    times = stream[0, :]
+    data = stream[1, :]
+    times = numpy.round(times / 60.) * 60.
     return numpy.vstack((times, data))
 
 def find_ind(data, tik, step):
@@ -284,7 +318,7 @@ def generate_bg_trace(bg_data):
         start_ind = find_ind(data_time_axis, start_time, step/2.)
         for hes in range(num_steps):
             # Adding linearly interpolated values to the trace.
-            if start_val != None and end_val != None and start_ind !=None:
+            if start_val != None and end_val != None and start_ind != None:
                 bg_trace[start_ind + hes] = start_val + (increment * hes)
     return [data_time_axis, bg_trace]
 
@@ -358,12 +392,12 @@ def get_daily_totals(data):
 
 def daily_stats(stream):
     '''outputs the max, min, mean, std value for each day in the datastream.'''
-    if not stream:
+    if stream.shape[1] == 0:
         return [None, None], [None, None], [None, None], [None, None]
     else:
-        for kse in range(len(stream[0])):
-            stream[0][kse] = stream[0][kse]
-        day_breaks = numpy.nonzero(numpy.diff(numpy.floor(stream[0]/86400.)) != 0)
+        for kse in range(stream.shape[1]):
+            stream[0, kse] = stream[0, kse]
+        day_breaks = numpy.nonzero(numpy.diff(numpy.floor(stream[0, :]/86400.)) != 0)
         day_breaks = day_breaks[0]
         time_out = []
         means = []
@@ -377,9 +411,9 @@ def daily_stats(stream):
             else:
                 day_start = day_breaks[nse-1] + 1
                 day_end = day_breaks[nse]
-            time_out.append(stream[0][day_start])
-            day_data = stream[1][day_start:day_end]
-            time_data = stream[0][day_start:day_end]
+            time_out.append(stream[0, day_start])
+            day_data = stream[1, day_start:day_end]
+            time_data = stream[0, day_start:day_end]
             day_max.append(max(day_data))
             day_min.append(min(day_data))
             trace = generate_trace([time_data, day_data])
@@ -402,38 +436,38 @@ def combine_data_streams(samples, CGM_data):
     '''using the bg data from the monitor to pin the CGM data 
     (assumes bg monitor is more reliable than the CGM)'''
     print 'input streams', numpy.shape(samples), numpy.shape(CGM_data)
-    if not CGM_data or not samples:
+    if CGM_data.shape[1] == 0 or samples.shape[1] == 0:
         combined_data = None
     else:
-        combined_data = copy.copy(CGM_data)
-        for hs in range(len(samples[0])-1):
-            sample_start = samples[0][hs]
-            sample_end = samples[0][hs+1]
+        combined_data = numpy.copy(CGM_data)
+        for hs in range(samples.shape[1]-1):
+            sample_start = samples[0, hs]
+            sample_end = samples[0, hs+1]
             # Finds the CGM datapoints either side of the first BG data point.
-            tmp1 = numpy.array(numpy.nonzero(CGM_data[0] <= sample_start))
+            tmp1 = numpy.array(numpy.nonzero(CGM_data[0, :] <= sample_start))
             tmp_start1 = tmp1[0][-1]
-            tmp2 = numpy.array(numpy.nonzero(CGM_data[0] >= sample_start))
+            tmp2 = numpy.array(numpy.nonzero(CGM_data[0, :] >= sample_start))
             tmp_end1 = tmp2[0][0]
             #Finds the interpolated CGM value at the BG data point.
-            cgm_st_val = find_interp_val(CGM_data[0][tmp_start1], 
-                                     CGM_data[0][tmp_end1], sample_start,
-                                     CGM_data[1][tmp_start1], 
-                                     CGM_data[1][tmp_end1])
+            cgm_st_val = find_interp_val(CGM_data[0, tmp_start1], 
+                                     CGM_data[0, tmp_end1], sample_start,
+                                     CGM_data[1, tmp_start1], 
+                                     CGM_data[1, tmp_end1])
             # Finds the CGM datapoints either side of the first BG data point.
-            tmp3 = numpy.array(numpy.nonzero(CGM_data[0] <= sample_end))
+            tmp3 = numpy.array(numpy.nonzero(CGM_data[0, :] <= sample_end))
             tmp_start2 = tmp3[0][-1]
-            tmp4 = numpy.array(numpy.nonzero(CGM_data[0] >=  sample_end))
+            tmp4 = numpy.array(numpy.nonzero(CGM_data[0, :] >=  sample_end))
             tmp_end2 = tmp4[0][0]
              #Finds the interpolated CGM value at the BG data point.
-            cgm_end_val = find_interp_val(CGM_data[0][tmp_start2], 
-                                     CGM_data[0][tmp_end2], sample_end,
-                                     CGM_data[1][tmp_start2], 
-                                     CGM_data[1][tmp_end2])
+            cgm_end_val = find_interp_val(CGM_data[0, tmp_start2], 
+                                     CGM_data[0, tmp_end2], sample_end,
+                                     CGM_data[1, tmp_start2], 
+                                     CGM_data[1, tmp_end2])
             # difference between samples and CGM data
-            diff1 = samples[1][hs] - cgm_st_val
-            diff2 = samples[1][hs + 1] - cgm_end_val - diff1
-            temp = CGM_data[1][tmp_end1:tmp_start2]
-            temp_time = CGM_data[0][tmp_end1:tmp_start2]
+            diff1 = samples[1, hs] - cgm_st_val
+            diff2 = samples[1, hs + 1] - cgm_end_val - diff1
+            temp = CGM_data[1, tmp_end1:tmp_start2]
+            temp_time = CGM_data[0, tmp_end1:tmp_start2]
             # initially shift everything down by diff1
             temp = temp + diff1
             #then compress so get diff2 == 0
@@ -441,7 +475,7 @@ def combine_data_streams(samples, CGM_data):
             for hm in range(len(temp)):
                 correction = diff2 * (temp_time[hm] - sample_start) / \
                                      (sample_end - sample_start)
-                combined_data[1][tmp_end1 + hm] = temp[hm] + correction
+                combined_data[1, tmp_end1 + hm] = temp[hm] + correction
         return combined_data
 
 def unique_list(seq):
@@ -538,11 +572,11 @@ def top():
     # separate out the hypo samples and use them to calculate the time since the
     # last hypo event.
     hypostream = separate_hypo_data(bgstream, levels[4])
-    tm_lst_hypo = find_time_last_hypo(combinedstream, hypostream)
-    tm_nxt_hypo = find_time_next_hypo(combinedstream, hypostream)
+    tm_lst_hypo = find_time_last(combinedstream, hypostream)
+    tm_nxt_hypo = find_time_next(combinedstream, hypostream)
     # using the carbstream to calculate the time since the last meal.
-    tm_lst_carbs = find_time_last_carbs(combinedstream, carbstream)
-    tm_nxt_carbs = find_time_next_carbs(combinedstream, carbstream)
+    tm_lst_carbs = find_time_last(combinedstream, carbstream)
+    tm_nxt_carbs = find_time_next(combinedstream, carbstream)
     pre_meal_flg = add_pre_meal_flag(tm_nxt_carbs)
     post_meal_flg = add_post_meal_flag(tm_lst_carbs)
     # Calculating the high limit for each data point as this changes 
@@ -550,8 +584,8 @@ def top():
     hi_lim_val = finding_high_limit(tm_lst_carbs, levels[2])
     # using the bolusstream to calculate the time since the last bolus 
     #and  its value. 
-    val_lst_bolus = find_val_last_bolus(combinedstream, bolusstream)
-    tm_lst_bolus = find_time_last_bolus(combinedstream, bolusstream)
+    val_lst_bolus = find_val_last(combinedstream, bolusstream)
+    tm_lst_bolus = find_time_last(combinedstream, bolusstream)
 
     state = finding_states(combinedstream, levels, hi_lim_val)
     # Generating daily totals for the carbs, basal, and bolus.

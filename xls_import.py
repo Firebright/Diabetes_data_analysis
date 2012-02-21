@@ -8,6 +8,7 @@ import xlrd
 import re
 from locate_data import dir_list_gen
 import numpy
+import unicodedata
 
 def import_module_xls(dir_path):
     '''Reads in data from an xls spreadsheet and 
@@ -86,8 +87,10 @@ def import_module_xls(dir_path):
     basaladjustream = xls_condition_input(basaldates, basaltimes, basaladju)
     basaladjlstream = xls_condition_input(basaldates, basaltimes, basaladjl)
     bgstream = xls_condition_input(bgdates, bgtimes, bgdata)
+    print 'Carbsdata',type(carbsdata),type(carbsdata[0])
+    print carbsdata
     carbstream = xls_condition_input(bgdates, bgtimes, carbsdata) 
-    eventstream = xls_condition_input(eventsdates, eventstimes, eventsdata)
+    eventstream = xls_condition_input(eventsdates, eventstimes, eventsdata, noconv = True)
     return bolusstream, basalstream, basaladjustream, basaladjlstream, \
             bgstream, carbstream, eventstream
             
@@ -239,7 +242,7 @@ def sorted_dict_values(adict):
     items.sort()
     return [value for key, value in items]
     
-def xls_condition_input(date_in, time_in, data_in):
+def xls_condition_input(date_in, time_in, data_in, noconv = False):
     ''' Takes a vector of dates, times and input data and outputs a list
     of timestamps and data. Any entries with invalid dates, time or data
     are removed.'''
@@ -249,8 +252,15 @@ def xls_condition_input(date_in, time_in, data_in):
     for ksh in range(len(date_in)):
         # sets the empty cells of the input spreadsheet to None so that the 
         # output stream only contains valid data.
-        if data_in[ksh] == '---' or data_in[ksh] == '\xa0':
-            data_in[ksh] = None
+        if noconv == False:        
+            if type(data_in[ksh]) == unicode:   
+                print data_in[ksh]
+                if data_in[ksh] == '---' :
+                    data_in[ksh] = None
+                else:
+                    data_in[ksh] = unicodedata.numeric(data_in[ksh], None)
+#            
+#            else data_in[ksh] = float(data_in[ksh])
         # check if there is a valid time
         if type(date_in[ksh]) != float:
             try:                                
