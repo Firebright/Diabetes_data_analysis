@@ -13,31 +13,31 @@ def main_plot(bgstream, state_streams, combined_trace,
     '''Generates the main overview plot.'''
     figure(7)
     fracs = plottinglib.calc_fractions(state_streams)
-    ax1 = axes([0.1, 0.5, 0.4, 0.45])
-    ax1.plot(bg_day_min[0], bg_day_min[1], 'r')
-    ax1.plot(bg_day_max[0], bg_day_max[1], 'b')
-    ax1.plot(bg_day_mean[0], bg_day_mean[1], 'ko')
+    ax1 = subplot(221)
+    #ax1 = axes([0.1, 0.5, 0.4, 0.45])
+    ax1.plot(bg_day_min[0, :], bg_day_min[1, :], 'r')
+    ax1.plot(bg_day_max[0, :], bg_day_max[1, :], 'b')
+    ax1.plot(bg_day_mean[0, :], bg_day_mean[1, :], 'k.')
     ax1.set_ylabel('Blood Glucose (mg/mmol)')
     ax1.set_title('Daily values')
     ax2 = subplot(222)
     hold(True)
-    ax2.plot(bgstream[0], bgstream[1], 'k:')
-    ax2.fill_between(bgstream[0], bgstream[1], y2=4.0, facecolor='yellow')
-    ax2.fill_between(bgstream[0], bgstream[1], y2=3.7, facecolor='red')    
+    ax2.plot(combined_trace[0, :], combined_trace[1, :], 'k:')
+    ax2.fill_between(combined_trace[0, :], combined_trace[1, :], y2=4.0, facecolor='yellow')
+    ax2.fill_between(combined_trace[0, :], combined_trace[1, :], y2=3.7, facecolor='red')    
 #    ax2.fill_between(st2[0], st2[1], 8.0, facecolor='blue') 
-    ax2.plot(combined_trace[0], combined_trace[1], 'g-')
-    ax2.set_xlim(bgstream[0][0], bgstream[0][-1])
+    ax2.set_xlim(combined_trace[0, 0], combined_trace[0, -1])
     hold(False)
     ax2.set_ylabel('Blood Glucose (mg/mmol)')
     ax2.set_title('Blood glucose over time')
     ax2.set_xlabel('Time')
     ax3 = subplot(223)
-    data_len = len(bg_day_mean[0])
+    data_len = bg_day_mean.shape[1]
     hold(True)
     for  ihp in range(data_len):
         col_val = ((data_len - (ihp-1))/data_len) * 0.6 + 0.4
         sze = numpy.floor(((data_len - ihp)/data_len) * 7) + 3
-        ax3.plot(bg_day_std[1][ihp], bg_day_mean[1][ihp], 'o', \
+        ax3.plot(bg_day_std[1, ihp], bg_day_mean[1, ihp], 'o', \
         markersize=sze,\
         markeredgecolor= ((col_val, col_val, 1)), \
         markerfacecolor= ((col_val, col_val, 1)))
@@ -79,9 +79,9 @@ def comp_plot(bgstream, combined_trace, CGMstream):
     figure(9)
     ax1 = axes([0.05, 0.05, 0.9, 0.9])
     hold(True)
-    ax1.plot(bgstream[0], bgstream[1], 'r')
-    ax1.plot(CGMstream[0], CGMstream[1], 'b')
-    ax1.plot(combined_trace[0], combined_trace[1], 'k')
+    ax1.plot(bgstream[0, :], bgstream[1, :], 'r')
+    ax1.plot(CGMstream[0, :], CGMstream[1, :], 'b')
+    ax1.plot(combined_trace[0, :], combined_trace[1, :], 'k')
     ax1.set_ylabel('Blood Glucose (mg/mmol)')
     ax1.set_title('Time')
 #    figure(5)

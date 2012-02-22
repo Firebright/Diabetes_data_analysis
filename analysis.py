@@ -39,40 +39,6 @@ def add_post_meal_flag(tm_lst_carbs):
             post_meal_flg.append(0)
     return post_meal_flg
 
-#def find_time_next_carbs(bg_data, carbs_data):
-#    '''Finds how long until the next carbs for each bg data point.'''
-#    tm_nxt_carbs = []
-#    for ruh in range(len(bg_data[0])):    
-#        # find the index of the last meal
-#        next_carb_ind = numpy.nonzero(carbs_data[0] > bg_data[0][ruh])
-#        if len(next_carb_ind[0]) >0:
-#            if next_carb_ind[0][0]:
-#                # Time until last meal (in seconds).
-#                tm_nxt_carbs.append(bg_data[0][ruh] - 
-#                                carbs_data[0][next_carb_ind[0][0]])
-#            else:
-#                tm_nxt_carbs.append(numpy.nan)
-#        else:
-#            tm_nxt_carbs.append(numpy.nan)          
-#    return tm_nxt_carbs
-#    
-#def find_time_next_hypo(bg_data, hypo_data):
-#    '''Finds how long until the next hypo for each bg data point.'''
-#    tm_nxt_hypo = []
-#    if hypo_data.shape[1] == 0:
-#        return None
-#    else:
-#        for ruh in range(bg_data.shape[1]):    
-#            # find the index of the last meal
-#            next_hypo_ind = numpy.nonzero(hypo_data > bg_data[0, ruh])[0]
-#            if len(next_hypo_ind) == 0:
-#                tm_nxt_hypo.append(numpy.nan)
-#            else:
-#                # Time until last meal (in seconds).
-#                tm_nxt_hypo.append(bg_data[0, ruh] - 
-#                                   hypo_data[next_hypo_ind[0]])
-#        return numpy.array(tm_nxt_hypo)
-#        
 def find_time_next(ref_data, ev_data):
     '''Finds how long until the next event in ev_data for each bg data point.'''
     tm_nxt = []
@@ -88,21 +54,6 @@ def find_time_next(ref_data, ev_data):
                 # Time until last meal (in seconds).
                 tm_nxt.append(ref_data[0, ruh] - ev_data[0, next_ind[0]])
         return numpy.array(tm_nxt)
-
-
-#def find_time_last_carbs(bg_data, carbs_data):
-#    '''Finds how long ago carbs we easten for each bg data point.'''
-#    tm_lst_carbs = []
-#    for ruh in range(bg_data.shape[1]):    
-#        # find the index of the last meal
-#        last_carb_ind = numpy.nonzero(carbs_data[0, :] < bg_data[0, ruh])
-#        if len(last_carb_ind[0]) == 0:
-#            tm_lst_carbs.append(numpy.nan)
-#        else:
-#            # Time until last meal (in seconds).
-#            tm_lst_carbs.append(bg_data[0, ruh] - 
-#                                carbs_data[0, last_carb_ind[0][-1]])
-#    return numpy.array(tm_lst_carbs)
 
 def find_time_last(ref_data, ev_data):
     '''Finds how long ago since the last hypo for each bg data point.'''
@@ -120,37 +71,6 @@ def find_time_last(ref_data, ev_data):
               #  print type(ev_data[0, last_ind[-1]])
                 tm_lst.append(ref_data[0, ruh] - ev_data[0, last_ind[-1]])
         return numpy.array(tm_lst)
-
-#def find_time_last_hypo(bg_data, hypo_data):
-#    '''Finds how long ago since the last hypo for each bg data point.'''
-#    tm_lst_hypo = []
-#    if len(hypo_data) == 0:
-#        return None
-#    else:
-#        for ruh in range(bg_data.shape[1]):    
-#            # find the index of the last meal
-#            last_hypo_ind = numpy.nonzero(hypo_data < bg_data[0, ruh])[0]
-#            if len(last_hypo_ind) == 0:
-#                tm_lst_hypo.append(numpy.nan)
-#            else:
-#                # Time until last meal (in seconds).
-#                tm_lst_hypo.append(bg_data[0, ruh] - 
-#                                   hypo_data[last_hypo_ind[-1]])
-#        return numpy.array(tm_lst_hypo)
-#    
-#def find_time_last_bolus(bg_data, bolus_data):
-#    '''Finds how long ago since the last bolus for each bg data point.'''
-#    tm_lst_bolus = []
-#    for ruh in range(len(bg_data[0])):    
-#        # find the index of the last meal
-#        last_bolus_ind = numpy.nonzero(bolus_data[0] < bg_data[0][ruh])
-#        if len(last_bolus_ind[0]) == 0:
-#            tm_lst_bolus.append(numpy.nan)
-#        else:
-#            # Time until last bolus (in seconds).
-#            tm_lst_bolus.append(bg_data[0][ruh] - 
-#                                bolus_data[0][last_bolus_ind[0][-1]])
-#    return tm_lst_bolus
     
 def separate_hypo_data(bg_data, low_lim):
     '''Generate a list of hypo events'''
@@ -270,17 +190,16 @@ def intialise_trace(data):
     '''Sets up the timebase of the trace and a placeholder list of nan for the 
     data to go into.'''
     #length of sample time in seconds
-    data_start_time = round2minute(data[0][0])
-    data_end_time = round2minute(data[0][-1])    
+    data_start_time = round2minute(data[0, 0])
+    data_end_time = round2minute(data[0, -1])    
     data_length = etime(data_end_time, data_start_time)
     #print 'day start', data_start_time, 'day end', data_end_time, 'day length', data_length
     data_time_axis = data_start_time + \
         numpy.linspace(0,data_length-1,data_length/60)
-    data_time_axis = data_time_axis.flatten().tolist()
     # setting initial values
-    trace = numpy.ones((len(data_time_axis), 1)) * numpy.nan
-    trace = trace.flatten().tolist()
-    return data_time_axis, trace
+    trace = numpy.zeros((len(data_time_axis), 1))
+    print data_time_axis.shape, trace[:,0].shape
+    return numpy.vstack((data_time_axis, trace[:,0]))
     
 def find_interp_val(start_time, end_time, req_time, start_val, end_val):
     '''Will return the linearly interpolated value 
@@ -325,26 +244,28 @@ def generate_bg_trace(bg_data):
 def generate_trace(stream):
     '''Outputs the data on a minute by minute basis 
     using linear interpolation where neccessary.''' 
-    if not stream:
+    if stream.shape[1] == 0:
         return None
-    data_time_axis, trace = intialise_trace(stream)
+    print 'Stream shape', stream.shape
+    trace = intialise_trace(stream)
+    print 'Trace shape', trace.shape
    # print 'time axis', data_time_axis[0]
-    for mwg in range(len(stream[0])-1):
+    for mwg in range(stream.shape[1]-1):
         # find the start and end times of the current event
-        start_time = stream[0][mwg]
-        end_time   = stream[0][mwg + 1]
-        start_val  = stream[1][mwg]
-        end_val    = stream[1][mwg + 1]
+        start_time = stream[0, mwg]
+        end_time   = stream[0, mwg + 1]
+        start_val  = stream[1, mwg]
+        end_val    = stream[1, mwg + 1]
         num_steps  = int(round(etime(end_time, start_time))/60.)
         step = 120
         increment = (end_val - start_val)/ num_steps
-        start_ind = find_ind(data_time_axis, start_time, step/2.)
+        start_ind = find_ind(trace[0, :], start_time, step/2.)
         for hes in range(num_steps):
             # Adding linearly interpolated values to the trace.
            # print start_val, end_val, hes, increment, start_ind
             if start_val != None and end_val != None and start_ind != None:
-                trace[start_ind + hes] = start_val + (increment * hes)
-    return [data_time_axis, trace]
+                trace[1, start_ind + hes] = start_val + (increment * hes)
+    return trace
 
 def generate_basal_trace(basal_data):
     '''outputs the basal dose on a minute by minute basis.'''
@@ -395,32 +316,34 @@ def daily_stats(stream):
     if stream.shape[1] == 0:
         return [None, None], [None, None], [None, None], [None, None]
     else:
-        for kse in range(stream.shape[1]):
-            stream[0, kse] = stream[0, kse]
-        day_breaks = numpy.nonzero(numpy.diff(numpy.floor(stream[0, :]/86400.)) != 0)
-        day_breaks = day_breaks[0]
-        time_out = []
-        means = []
-        day_max = []
-        day_min = []
-        st_dev = []
-        for nse in range(len(day_breaks)):
+        day_breaks = numpy.nonzero(numpy.diff(numpy.floor(stream[0, :]/86400.)) != 0)       
+        for nse in range(len(day_breaks[0])):
             if nse == 0:
                 day_start = 0
-                day_end = day_breaks[nse]
+                day_end = day_breaks[0][nse]
+                time_out = numpy.array(stream[0, day_start])            
+                day_max = numpy.array(max(stream[1, day_start:day_end]))
+                day_min = numpy.array(min(stream[1, day_start:day_end]))
+                # Generating a minute by minute trace so that the
+                # std nd mean hav equispaced data.
+                trace = generate_trace(stream[:, day_start:day_end])
+                st_dev = numpy.std(numpy.array(trace[1,:]))
+                means = numpy.mean(numpy.array(trace[1, :]))
             else:
-                day_start = day_breaks[nse-1] + 1
-                day_end = day_breaks[nse]
-            time_out.append(stream[0, day_start])
-            day_data = stream[1, day_start:day_end]
-            time_data = stream[0, day_start:day_end]
-            day_max.append(max(day_data))
-            day_min.append(min(day_data))
-            trace = generate_trace([time_data, day_data])
-            st_dev.append(numpy.std(numpy.array(trace[1])))
-            means.append(numpy.mean(numpy.array(trace[1])))
-    return [time_out, day_min], [time_out, day_max], \
-            [time_out, means], [time_out, st_dev]
+                day_start = day_breaks[0][nse-1] + 1
+                day_end = day_breaks[0][nse]
+                time_out = numpy.hstack((time_out, stream[0, day_start]))            
+                day_max = numpy.hstack((day_max, max(stream[1, day_start:day_end])))
+                day_min = numpy.hstack((day_min, min(stream[1, day_start:day_end])))
+                # Generating a minute by minute trace so that the
+                # std nd mean hav equispaced data.
+                trace = generate_trace(stream[:, day_start:day_end])
+                st_dev = numpy.hstack((st_dev, numpy.std(trace[1, :])))
+                means = numpy.hstack((means, numpy.mean(trace[1, :])))
+    return numpy.vstack((time_out, day_min)), \
+           numpy.vstack((time_out, day_max)), \
+           numpy.vstack((time_out, means)), \
+           numpy.vstack((time_out, st_dev))
 
 def generate_state_streams(bg_data, state):
     '''Contructs the state data stream from the separate sub streams.'''
@@ -596,6 +519,7 @@ def top():
 #    carb_dailys = get_daily_totals(carbstream)
     bg_day_min, bg_day_max, bg_day_mean, bg_day_std = daily_stats(
     combinedstream)
+    print 'Stats', bg_day_min.shape, bg_day_max.shape, bg_day_mean.shape ,bg_day_std.shape 
     state_streams = generate_state_streams(combinedstream, state)    
     print 'Data analysed'
     plotting.main_plot(bgstream, state_streams, combinedstream, 
