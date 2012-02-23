@@ -6,32 +6,51 @@ Created on Wed Jan 25 12:06:06 2012
 """
 from matplotlib.pyplot import figure, show, hold, subplot, axes
 import plottinglib
+import matplotlib.dates as mdates
 import numpy
 
 def main_plot(bgstream, state_streams, combined_trace,
               bg_day_min, bg_day_max, bg_day_mean, bg_day_std):
     '''Generates the main overview plot.'''
-    figure(7)
+    figure(7, figsize=(16,10))
+    #years    = mdates.YearLocator()   # every year
+#    days = mdates.WeekdayLocator(byweekday=MO)  # every month
+    #Fmt = mdates.DateFormatter('%DD%MMM')
+    ax1_loc = [0.05, 0.6, 0.4, 0.35]
+    ax2_loc = [0.55, 0.6, 0.4, 0.35]
+    ax3_loc = [0.05, 0.05, 0.25, 0.4]
+    ax4_loc = [0.3, 0.05, 0.35, 0.35]
     fracs = plottinglib.calc_fractions(state_streams)
-    ax1 = subplot(221)
+    ax1 = axes(ax1_loc)
     #ax1 = axes([0.1, 0.5, 0.4, 0.45])
     ax1.plot(bg_day_min[0, :], bg_day_min[1, :], 'r')
     ax1.plot(bg_day_max[0, :], bg_day_max[1, :], 'b')
     ax1.plot(bg_day_mean[0, :], bg_day_mean[1, :], 'k.')
     ax1.set_ylabel('Blood Glucose (mg/mmol)')
     ax1.set_title('Daily values')
-    ax2 = subplot(222)
+    ax2 = axes(ax2_loc)
     hold(True)
-    ax2.plot(combined_trace[0, :], combined_trace[1, :], 'k:')
-    ax2.fill_between(combined_trace[0, :], combined_trace[1, :], y2=4.0, facecolor='yellow')
-    ax2.fill_between(combined_trace[0, :], combined_trace[1, :], y2=3.7, facecolor='red')    
+    ax2.plot(combined_trace[0, :], combined_trace[1, :], 'k')
+    y_data =  combined_trace[1, :]
+    lim_vec = numpy.ones((combined_trace.shape[1]))
+    wh_r = numpy.where(y_data < 3.7, True, False)
+    wh_y = numpy.where(y_data <4.0, True, False)
+    wh_b = numpy.where(y_data > 8.0, True, False)
+    ax2.fill_between(combined_trace[0, :], y_data, lim_vec*4.0 , where=wh_y, facecolor='yellow')
+    ax2.fill_between(combined_trace[0, :], y_data, lim_vec*3.7, where=wh_r, facecolor='red')    
+    ax2.fill_between(combined_trace[0, :], y_data, lim_vec*8.0, where=wh_b, facecolor='blue')    
 #    ax2.fill_between(st2[0], st2[1], 8.0, facecolor='blue') 
     ax2.set_xlim(combined_trace[0, 0], combined_trace[0, -1])
     hold(False)
     ax2.set_ylabel('Blood Glucose (mg/mmol)')
     ax2.set_title('Blood glucose over time')
     ax2.set_xlabel('Time')
-    ax3 = subplot(223)
+    # format the ticks
+   # ax2.xaxis.set_major_locator(days)
+    #ax2.xaxis.set_major_formatter(Fmt)
+ #   ax2.xaxis.set_minor_locator(months)
+    ax3 = axes(ax3_loc)
+    ax3.set_aspect('equal', 'datalim')
     data_len = bg_day_mean.shape[1]
     hold(True)
     for  ihp in range(data_len):
@@ -47,7 +66,7 @@ def main_plot(bgstream, state_streams, combined_trace,
     ax3.set_ylabel('Standard deviation')
     ax3.set_xlabel('Mean')
     ax3.set_title('Stability')
-    ax4 = subplot(224)
+    ax4 = axes(ax4_loc)
     ax4.set_aspect(1)
     plottinglib.light_filter_pie(ax4, fracs)
     ax4.set_title('Fraction of time in each state')

@@ -454,6 +454,164 @@ def remove_nan_from_list(data_in):
             data_out.append(dkn)
     return data_out
 
+def calc_dur_and_rt(event_values, event_state, levels):
+    '''Calculates duration of events and recovery times back to normal.'''
+    # a = bg_events(4,:) - circshift(bg_events(4,:),[0 1])
+    b = numpy.nonzero(event_state[:,1] == 4)
+    
+    p1 = 1
+    p2 = 1
+    p3 = 1
+    p5 = 1
+    p6 = 1
+    ph = 1
+    pp = 1
+    recovery_high = []
+    recovery_high3 = []
+    recovery_high2 = []
+    recovery_high1 = []
+    recovery_warn = []
+    recovery_low = []
+    recovery_hypo = []
+    duration_high = []
+    duration_high3 = []
+    duration_high2 = []
+    duration_high1 = []
+    duration_warn = []
+    duration_low = []
+    duration_hypo= []
+    for nw in range(len(b) -1):
+        if b[nw+1] - b[nw] > 1:
+            c = event_values[b[nw]+1:b[nw+1]-1,2]
+            if c[1] <= levels[4]:
+                [tp,I] = min(c)
+            else:
+                [tp,I] = max(c)
+            # find most extreeme state which has been recovered from in this
+            # event
+            srf = event_state[b[nw]+I,2]
+            # recovery time in hours from start of event
+            rt = etime(datevec(event_state[b[nw+1],1]),
+                       datevec(event_state[b[nw]+ 1,1]))/3600
+            # duration of event in hours
+            dt = etime(datevec(event_state[b[nw+1],1]),
+                       datevec(event_state[b[nw],1]))/3600
+            if srf == 6:
+                recovery_low[p6] = rt
+                duration_low[p6] = dt
+                p6 = p6 +1
+                recovery_hypo[pp] = rt
+                duration_hypo[pp] = dt
+                pp = pp +1
+            elif srf == 5:
+                recovery_warn[p5] = rt
+                duration_warn[p5] = dt
+                p5 = p5 +1
+                recovery_hypo[pp] = rt
+                duration_hypo[pp] = dt
+                pp = pp +1
+            elif srf == 3:
+                recovery_high1[p3] = rt
+                duration_high1[p3] = dt
+                p3 = p3 +1
+                recovery_high[ph] = rt
+                duration_high[ph] = dt
+                ph = ph +1
+            elif srf == 2:
+                recovery_high2[p2] = rt
+                duration_high2[p2] = dt
+                p2 = p2 +1
+                recovery_high[ph] = rt
+                duration_high[ph] = dt
+                ph = ph +1
+            elif srf == 1:
+                recovery_high3[p1] = rt
+                duration_high3[p1] = dt
+                p1 = p1 +1
+                recovery_high[ph] = rt
+                duration_high[ph] = dt
+                ph = ph +1
+    counts = [p1,p2,p3,p5,p6,ph,pp]
+    return recovery_high, recovery_high3, recovery_high2, recovery_high1, \
+    recovery_warn, recovery_low, recovery_hypo, \
+    duration_high, duration_high3, duration_high2, duration_high1, \
+    duration_warn, duration_low, duration_hypo, counts
+
+def  event_means(recovery,duration):
+    # Generates the mean values of the durations and recovery times, rounded to
+    # the nearest 0.1hr
+    p = numpy.size(duration,1)
+    if p >= 1:
+        num = len(recovery)
+        recovery = round(numpy.mean(recovery)*10)/10
+        duration = round(numpy.mean(duration)*10)/10
+    
+    else:
+        recovery = 0
+        duration = 0
+        num = 0
+    return num,recovery,duration
+    
+def generate_event_list(samples, tw):
+    
+    diffs = numpy.diff(tw.state[:,1])
+    locs = numpy.nonzero(diffs !=0)
+    a = tw.state(locs,2)
+    b = tw.state(locs+1,2)
+    c = locs(numpy.find(a==4))
+    d = locs(numpy.find(b==4))+1
+    if not d or not c:
+        event_type = []
+        event_duration = []
+        event_recovery = []
+        event_values = []
+    else:
+        if d[0] < c[0]:
+            # catching the tail end of event from previous time period
+            # remove to start in OK state [3]
+            d = d[1:-1]       
+        # number of events
+        num = len(c)
+        event_type = numpy.zeros((num,2))
+        event_duration = numpy.zeros((num,2))
+        event_recovery = numpy.zeros((num,2))
+        event_values = []
+        for lgd in range(num):
+            # skipping incomplete events at the begining and end.
+            # automatically skips the first one as it starts at 
+            #the first time the state is 4/
+            
+            #     if lgd == 1
+            #         continue
+            if lgd == num:
+                continue
+            else:
+                st = c[lgd]
+                ed = d[lgd]
+                ev = tw.bg_data[st:ed,:]
+            # find the max/min and get the state info from that time
+            [mx,ind] = max(ev[:,1])
+            if mx < 8:
+                [mx,ind] = min(ev[:,1])
+            event_type[lgd,1] = tw.state[st + ind,1]
+            
+            event_type[lgd,0] = ev[0,0] 
+            event_duration[lgd,0] = ev[0,0] 
+            event_recovery[lgd,0] = ev[0,0] 
+            # duration of event in hours
+            event_duration[lgd,1] = (ev[-1,1] - ev[0,0] ) *  (24)
+            # find the first test done after event started.
+            tst1 = samples.bg_data[
+                numpy.find(samples.bg_data[:,0] >= ev[0,0] and
+                samples.bg_data[:,0] < ev[-1,1]),0]
+            # recovery time in hours
+            if not tst1:
+                event_recovery[lgd,1] = event_duration[lgd,1]
+            else:
+                event_recovery[lgd,1] = (ev[-1,1] - tst1[0]) *  (24)
+            event_values[lgd,1] = ev
+    return event_type, event_duration, event_recovery, event_values
+
 def top():   
     '''Analysis of blood glucose and insulin dose data which has been 
     extracted into a xls spreadsheet from the manufacturers reporting tools.'''
