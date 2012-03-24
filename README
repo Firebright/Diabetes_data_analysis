@@ -1,0 +1,17 @@
+This is the python code based on and extended from the original matlab/octave code I wrote in order to overcome the sampling biases in the analysis software provided with my daughters insulin pump and continuous glocose monitor.
+
+The program takes the exported TAB file data from abbot analysis program and the screen scrape from the Roche smartpix.
+TODO is to write a module to ingest the TAB export file from the Roche 360 software.
+
+The output is in terms of time spent in each state (high/low/OK) rather than number of samples as the latter over represents the low (retest every 15 mins) and under represents the highs (retest every hour).
+
+Any interpolation is linear.
+
+Additionally if both CGM and BG data are available best efforts are made to combine them in a sensible manner.
+The approach taken is that the BG gives more accurate absolute readings while the CGM give good trending data. Thus the CGM data is pinned and scaled such that is agrees with the BG data points (again this scaling is linear).
+
+From the data available daily statistics are generated for the Blood glucose (min/max, std, mean). Also daily record of the amount of carbohyrate eaten is also returned.
+
+Graphs are generated using matplotlib. 
+
+This is very much work in progress although most basic functionality is there.
