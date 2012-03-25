@@ -75,7 +75,7 @@ def find_time_last(ref_data, ev_data):
 def separate_hypo_data(bg_data, low_lim):
     '''Generate a list of hypo events'''
     hypo_data = bg_data[:, numpy.nonzero(bg_data[1, :] < low_lim)[0]]
-    print 'Size of hypo data', hypo_data.shape
+    #print 'Size of hypo data', hypo_data.shape
     return hypo_data
         
 def find_val_last(ref_data, ev_data):
@@ -167,7 +167,7 @@ def round2minute(val_in):
 
 def roundstream2minute(stream):
     '''Rounds the timestamps in a stream to the nearest minute.'''
-    print 'Round input',numpy.shape(stream)
+   # print 'Round input',numpy.shape(stream)
     times = stream[0, :]
     data = stream[1, :]
     times = numpy.round(times / 60.) * 60.
@@ -198,7 +198,7 @@ def intialise_trace(data):
         numpy.linspace(0,data_length-1,data_length/60)
     # setting initial values
     trace = numpy.zeros((len(data_time_axis), 1))
-    print data_time_axis.shape, trace[:,0].shape
+   # print data_time_axis.shape, trace[:,0].shape
     return numpy.vstack((data_time_axis, trace[:,0]))
     
 def find_interp_val(start_time, end_time, req_time, start_val, end_val):
@@ -246,9 +246,9 @@ def generate_trace(stream):
     using linear interpolation where neccessary.''' 
     if stream.shape[1] == 0:
         return None
-    print 'Stream shape', stream.shape
+    #print 'Stream shape', stream.shape
     trace = intialise_trace(stream)
-    print 'Trace shape', trace.shape
+    #print 'Trace shape', trace.shape
    # print 'time axis', data_time_axis[0]
     for mwg in range(stream.shape[1]-1):
         # find the start and end times of the current event
@@ -358,7 +358,7 @@ def generate_state_streams(bg_data, state):
 def combine_data_streams(samples, CGM_data):
     '''using the bg data from the monitor to pin the CGM data 
     (assumes bg monitor is more reliable than the CGM)'''
-    print 'input streams', numpy.shape(samples), numpy.shape(CGM_data)
+    #print 'input streams', numpy.shape(samples), numpy.shape(CGM_data)
     if CGM_data.shape[1] == 0 or samples.shape[1] == 0:
         combined_data = None
     else:
@@ -433,18 +433,8 @@ def separate_states(bg_data, state):
 def remove_nan_from_stream(data):
     '''Remove data points where the data is nan
     (so also removes the timestamp)'''   
-    tmp = numpy.isnan(data)
-    inds = numpy.nonzero(tmp == True)
-    print 'Nan stream size', numpy.shape(inds[1])
-    print numpy.shape(data)
-    numpy.delete(data, inds[1], 1)
-    print numpy.shape(data)
-  #  for hst in range(len(data_in[0])):
-   #     if not numpy.isnan(data_in[0][hst]) and not \
-    #            numpy.isnan(data_in[1][hst]):
-     #       data_out.append(data_in[1][hst])
-      #      time_out.append(data_in[0][hst])
-    return data
+    inds = numpy.nonzero( numpy.isnan(data) == True)   
+    return numpy.delete(data, inds[1], 1)
     
 def remove_nan_from_list(data_in):
     '''Removes nan from a list of numbers'''
@@ -626,7 +616,7 @@ def top():
     cgmstream, cgm_device_name, cgm_device_id = \
             get_CGM_data('./CGM_data')
     print 'Data extracted from files'    
-    print numpy.shape(bgstream)
+    #print numpy.shape(bgstream)
     basalstream = remove_nan_from_stream(basalstream)
     bolusstream = remove_nan_from_stream(bolusstream)
     bgstream = remove_nan_from_stream(bgstream) 
@@ -642,13 +632,13 @@ def top():
    # basal_trace = generate_basal_trace(basalstream)
    # bg_trace = generate_bg_trace(bgstream)
    # cgm_trace = generate_bg_trace(cgmstream)
-    print 'Traces generated'
+  #  print 'Traces generated'
     # combining the cgm and bg monitor data to get a trace which reflects the 
     # gradient changes as seen on the CGM with the (hopefully) more acurate
     # blood glucose readings of the bg monitor.
     combinedstream = combine_data_streams(bgstream, cgmstream)
-    print numpy.array(cgmstream) - numpy.array(combinedstream)
-    print 'Traces combined'    
+    #print numpy.array(cgmstream) - numpy.array(combinedstream)
+    print 'Streams combined'   
    # print len(combinedstream[0])    
     # separate out the hypo samples and use them to calculate the time since the
     # last hypo event.
@@ -677,7 +667,7 @@ def top():
 #    carb_dailys = get_daily_totals(carbstream)
     bg_day_min, bg_day_max, bg_day_mean, bg_day_std = daily_stats(
     combinedstream)
-    print 'Stats', bg_day_min.shape, bg_day_max.shape, bg_day_mean.shape ,bg_day_std.shape 
+    #print 'Stats', bg_day_min.shape, bg_day_max.shape, bg_day_mean.shape ,bg_day_std.shape 
     state_streams = generate_state_streams(combinedstream, state)    
     print 'Data analysed'
     plotting.main_plot(bgstream, state_streams, combinedstream, 

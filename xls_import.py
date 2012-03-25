@@ -277,7 +277,7 @@ def xls_condition_input(date_in, time_in, data_in, noconv = False):
         else:
             t_time = time_in[ksh]
         if t_date != None and t_time != None and data_in[ksh] != None:
-            ts_out.extend([xls_convert_timestamps(t_date + t_time)])  
+            ts_out.extend([xls_convert_timestamps(t_date + t_time)])
             data_out.extend([data_in[ksh]])
     # Remove duplicate timestamps
     ts_out , indices = numpy.unique(numpy.array(ts_out), return_index=True)

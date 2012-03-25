@@ -8,6 +8,16 @@ from matplotlib.artist import Artist
 from matplotlib.colors import LightSource
 import numpy
 from scipy import  zeros
+from datetime import datetime
+
+def convert_to_dates(data):
+    '''Take and array of integers representing date ordinals 
+       andconverts them into a list of datetime objects.'''    
+    out = []
+    for js in range(len(data)):
+        out.append(datetime.fromtimestamp(data[js]))
+    return out
+    
 def smooth1d(x, window_len):
     # copied from http://www.scipy.org/Cookbook/SignalSmooth
 
