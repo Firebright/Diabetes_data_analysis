@@ -291,30 +291,30 @@ def generate_basal_trace(basal_data):
                     basal_trace[lew] = val / 60.
     return [data_time_axis, basal_trace]
 
-def get_daily_totals(data):
+def get_daily_totals(stream):
     '''outputs the sum value for each day in the datastream.'''
-    for kse in range(len(data[0])):
-        data[0][kse] = data[0][kse]/86400.
-    day_breaks = numpy.nonzero(numpy.diff(numpy.floor(data[0])) != 0)
-    day_breaks = day_breaks[0]
-#    daily_totals = zeros((len(day_breaks),2))
-    time_out = []
-    data_out = []
-    for nse in range(len(day_breaks)):
-        if nse == 0:
-            day_start = 0
-            day_end = day_breaks[nse]
-        else:
-            day_start = day_breaks[nse-1] + 1
-            day_end = day_breaks[nse]
-        time_out.append(data[0][day_start])
-        data_out.append(sum(data[1][day_start:day_end]))
-    return [time_out, data_out]
+    if stream.shape[1] == 0:
+        return numpy.vstack((None, None))
+    else:
+        day_breaks = numpy.nonzero(numpy.diff(numpy.floor(stream[0, :]/86400.)) != 0)       
+        for nse in range(len(day_breaks[0])):
+            if nse == 0:
+                day_start = 0
+                day_end = day_breaks[0][nse]
+                time_out = numpy.array(stream[0, day_start])            
+                day_sum = numpy.array(sum(stream[1, day_start:day_end]))
+            else:
+                day_start = day_breaks[0][nse-1] + 1
+                day_end = day_breaks[0][nse]
+                time_out = numpy.hstack((time_out, stream[0, day_start]))            
+                day_sum = numpy.hstack((day_sum, sum(stream[1, day_start:day_end])))
+    return numpy.vstack((time_out, day_sum))
 
 def daily_stats(stream):
     '''outputs the max, min, mean, std value for each day in the datastream.'''
     if stream.shape[1] == 0:
-        return [None, None], [None, None], [None, None], [None, None]
+        return numpy.vstack((None, None)), numpy.vstack((None, None)), \
+               numpy.vstack((None, None)), numpy.vstack((None, None))
     else:
         day_breaks = numpy.nonzero(numpy.diff(numpy.floor(stream[0, :]/86400.)) != 0)       
         for nse in range(len(day_breaks[0])):
@@ -325,7 +325,7 @@ def daily_stats(stream):
                 day_max = numpy.array(max(stream[1, day_start:day_end]))
                 day_min = numpy.array(min(stream[1, day_start:day_end]))
                 # Generating a minute by minute trace so that the
-                # std nd mean hav equispaced data.
+                # std nd mean have equispaced data.
                 trace = generate_trace(stream[:, day_start:day_end])
                 st_dev = numpy.std(numpy.array(trace[1,:]))
                 means = numpy.mean(numpy.array(trace[1, :]))
@@ -336,7 +336,7 @@ def daily_stats(stream):
                 day_max = numpy.hstack((day_max, max(stream[1, day_start:day_end])))
                 day_min = numpy.hstack((day_min, min(stream[1, day_start:day_end])))
                 # Generating a minute by minute trace so that the
-                # std nd mean hav equispaced data.
+                # std nd mean have equispaced data.
                 trace = generate_trace(stream[:, day_start:day_end])
                 st_dev = numpy.hstack((st_dev, numpy.std(trace[1, :])))
                 means = numpy.hstack((means, numpy.mean(trace[1, :])))
@@ -437,7 +437,7 @@ def remove_nan_from_stream(data):
     return numpy.delete(data, inds[1], 1)
     
 def remove_nan_from_list(data_in):
-    '''Removes nan from a list of numbers'''
+    '''Removes nan from a list of numbers.'''
     data_out = []
     for dkn in data_in:
         if not numpy.isnan(dkn):
@@ -616,30 +616,20 @@ def top():
     cgmstream, cgm_device_name, cgm_device_id = \
             get_CGM_data('./CGM_data')
     print 'Data extracted from files'    
-    #print numpy.shape(bgstream)
     basalstream = remove_nan_from_stream(basalstream)
     bolusstream = remove_nan_from_stream(bolusstream)
     bgstream = remove_nan_from_stream(bgstream) 
-    bgstream = roundstream2minute(bgstream)
-    #cgmstream[0] = numpy.array(round2minute(numpy.array(cgmstream[0])))
+    cgmstream = remove_nan_from_stream(cgmstream)
+    carbstream = remove_nan_from_stream(carbstream)
+    #eventstream = remove_nan_from_stream(eventstream)
+    basaladjustream = remove_nan_from_stream(basaladjustream)
+    basaladjlstream = remove_nan_from_stream(basaladjlstream)  
     print 'Streams conditioned'
-#    carbstream = remove_nan_from_stream(carbstream)
-#    eventstream = remove_nan_from_stream(eventstream)
-#    basaladjustream = remove_nan_from_stream(basaladjustream)
-#    basaladjlstream = remove_nan_from_stream(basaladjlstream)
-#    cgmstream = remove_nan_from_stream(cgmstream)
-    # Need to generate minute by minute traces
-   # basal_trace = generate_basal_trace(basalstream)
-   # bg_trace = generate_bg_trace(bgstream)
-   # cgm_trace = generate_bg_trace(cgmstream)
-  #  print 'Traces generated'
     # combining the cgm and bg monitor data to get a trace which reflects the 
     # gradient changes as seen on the CGM with the (hopefully) more acurate
     # blood glucose readings of the bg monitor.
     combinedstream = combine_data_streams(bgstream, cgmstream)
-    #print numpy.array(cgmstream) - numpy.array(combinedstream)
     print 'Streams combined'   
-   # print len(combinedstream[0])    
     # separate out the hypo samples and use them to calculate the time since the
     # last hypo event.
     hypostream = separate_hypo_data(bgstream, levels[4])
@@ -664,14 +654,15 @@ def top():
     # directly, only records changes applied.
     #basal_dailys = get_daily_totals(basal_trace)
     bolus_dailys = get_daily_totals(bolusstream)
-#    carb_dailys = get_daily_totals(carbstream)
+    carb_dailys = get_daily_totals(carbstream)
     bg_day_min, bg_day_max, bg_day_mean, bg_day_std = daily_stats(
     combinedstream)
     #print 'Stats', bg_day_min.shape, bg_day_max.shape, bg_day_mean.shape ,bg_day_std.shape 
     state_streams = generate_state_streams(combinedstream, state)    
     print 'Data analysed'
     plotting.main_plot(bgstream, state_streams, combinedstream, 
-              bg_day_min, bg_day_max, bg_day_mean, bg_day_std)
+              bg_day_min, bg_day_max, bg_day_mean, bg_day_std, carb_dailys, 
+              bolus_dailys)
   #  plotting.spare_plot(bgstream, basalstream, bolusstream)
     plotting.comp_plot(bgstream, combinedstream, cgmstream)
     print 'Data plotted'

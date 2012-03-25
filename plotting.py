@@ -10,34 +10,27 @@ import matplotlib.dates as mdates
 import numpy
 
 def main_plot(bgstream, state_streams, combined_trace,
-              bg_day_min, bg_day_max, bg_day_mean, bg_day_std):
+              bg_day_min, bg_day_max, bg_day_mean, bg_day_std,
+              carb_dailys, bolus_dailys):
     '''Generates the main overview plot.'''
     Fmt = mdates.DateFormatter('%d\n%b\n%Y')  
     fig7 = figure(7, figsize=(16,10))
     #years    = mdates.YearLocator()   # every year
     days = mdates.WeekdayLocator(byweekday=mdates.MO)
     #Fmt = mdates.DateFormatter('%DD%MMM')
-    ax1_loc = [0.05, 0.6, 0.4, 0.35]
-    ax2_loc = [0.55, 0.6, 0.4, 0.35]
-    ax3_loc = [0.05, 0.05, 0.25, 0.4]
-    ax4_loc = [0.3, 0.05, 0.35, 0.35]
+    ax1_loc = [0.05, 0.22, 0.4, 0.25]
+    ax2_loc = [0.05, 0.65, 0.9, 0.3]
+    ax3_loc = [0.75, 0.05, 0.22, 0.38]
+    ax4_loc = [0.42, 0.05, 0.3, 0.3]
+    ax5_loc = [0.05, 0.07, 0.4, 0.15]
+#    ax6_loc = [0.05, 0.05, 0.4, 0.15]
     fracs = plottinglib.calc_fractions(state_streams)
-    # Plot of daily means, mins and maxes    
-    ax1 = axes(ax1_loc)
-    ax1.plot_date(plottinglib.convert_to_dates(bg_day_min[0, :]), bg_day_min[1, :], 'r')
-    ax1.plot_date(plottinglib.convert_to_dates(bg_day_max[0, :]), bg_day_max[1, :], 'b')
-    ax1.plot_date(plottinglib.convert_to_dates(bg_day_mean[0, :]), bg_day_mean[1, :], 'k.')
-    ax1.set_ylabel('Blood Glucose (mg/mmol)')
-    ax1.set_title('Daily values')
-    ax1.xaxis.set_major_formatter(Fmt)
-    ax1.xaxis.set_major_locator(days)
-    #  
     # Main BG time series plot
-  
     ax2 = axes(ax2_loc)
     hold(True)
     y_data =  combined_trace[1, :]
     x_dates = plottinglib.convert_to_dates(combined_trace[0, :])
+    graph_x_lims = [x_dates[0], x_dates[-1]]
     # Marking the times for warning, low and high.
     wh_r = numpy.where(y_data < 3.7, True, False)
     wh_y = numpy.where(y_data <4.0, True, False)
@@ -49,17 +42,25 @@ def main_plot(bgstream, state_streams, combined_trace,
     ax2.fill_between(x_dates, y_data, lim_vec*4.0 , where=wh_y, facecolor='yellow')
     ax2.fill_between(x_dates, y_data, lim_vec*3.7, where=wh_r, facecolor='red')    
     ax2.fill_between(x_dates, y_data, lim_vec*8.0, where=wh_b, facecolor='blue')     
-    ax2.set_xlim(x_dates[0], x_dates[-1])
+    ax2.set_xlim(graph_x_lims[0], graph_x_lims[1])
     hold(False)
     ax2.set_ylabel('Blood Glucose (mg/mmol)')
     ax2.set_title('Blood glucose over time')
     ax2.set_xlabel('Time')
     ax2.xaxis.set_major_formatter(Fmt)
-   # fig7.autofmt_xdate()
-    # format the ticks
-    ax2.xaxis.set_major_locator(days)
-    #ax2.xaxis.set_major_formatter(Fmt)
- #   ax2.xaxis.set_minor_locator(months)
+    ax2.xaxis.set_major_locator(days)    
+    # Plot of daily means, mins and maxes    
+    ax1 = axes(ax1_loc)
+    hold(True)
+    ax1.plot_date(plottinglib.convert_to_dates(bg_day_min[0, :]), bg_day_min[1, :], 'r')
+    ax1.plot_date(plottinglib.convert_to_dates(bg_day_max[0, :]), bg_day_max[1, :], 'b')
+    ax1.plot_date(plottinglib.convert_to_dates(bg_day_mean[0, :]), bg_day_mean[1, :], 'k.')
+    hold(False)    
+    ax1.set_ylabel('Blood Glucose (mg/mmol)')
+    ax1.set_title('Daily values')
+    ax1.xaxis.set_major_formatter(Fmt)
+    ax1.xaxis.set_major_locator(days)
+    ax1.set_xlim(graph_x_lims[0], graph_x_lims[1])
     # Metabolic stability graph
     ax3 = axes(ax3_loc)
     ax3.set_aspect('equal', 'datalim')
@@ -83,6 +84,22 @@ def main_plot(bgstream, state_streams, combined_trace,
     ax4.set_aspect(1)
     plottinglib.light_filter_pie(ax4, fracs)
     ax4.set_title('Fraction of time in each state')
+    # Plot of total daily carbs
+    ax5 = axes(ax5_loc)
+    ax5.plot_date(plottinglib.convert_to_dates(carb_dailys[0,:]),carb_dailys[1,:])
+    ax5.set_ylabel('Carbs (g)')
+    ax5.set_xlabel('Time')
+    ax5.set_xlim(graph_x_lims[0], graph_x_lims[1])
+    ax5.xaxis.set_major_formatter(Fmt)
+    ax5.xaxis.set_major_locator(days)
+    # Plot of ratio of Basal to Bolus TODO    
+#    ax6 = axes(ax6_loc)
+#    ax6.bar(plottinglib.convert_to_dates(bolus_dailys[0,:]),bolus_dailys[1,:])
+#    ax6.set_ylabel('Ratio')
+#    ax6.set_xlabel('Time')
+#    ax6.set_xlim(graph_x_lims[0], graph_x_lims[1])
+#    ax6.xaxis.set_major_formatter(Fmt)
+#    ax6.xaxis.set_major_locator(days)
     
 def spare_plot(bgstream, basalstream, bolusstream):
     '''TEMP.'''
