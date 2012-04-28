@@ -10,6 +10,7 @@ from xls_import import import_module_xls
 from cgm_import import get_CGM_data
 import datetime
 import plotting
+import calendar
 
 def add_pre_meal_flag(tm_nxt_carbs):
     '''Generating a vector of 0's and 1's to designate if the current bg
@@ -185,6 +186,19 @@ def find_ind(data, tik, step):
     if len(com) == 0:
         return None
     return com[0]
+
+def select_time_period(input_stream, start, end):
+    '''Takes a stream and returns only the section between 
+    the starts date and end date.'''
+    print 'start',start
+    print 'input', input_stream[0][0:5]
+    ind1 = numpy.nonzero(input_stream[0] < start)
+    print 'index',ind1[0][0:4]
+    print 'end', end
+    ind2 = numpy.nonzero(input_stream[0] > end)
+    print 'index', ind2[0][0:4]
+    #numpy.delete(input_stream, ind2[0], 1)
+    return numpy.delete(input_stream, numpy.hstack((ind1[0],ind2[0])), 1)
 
 def intialise_trace(data):
     '''Sets up the timebase of the trace and a placeholder list of nan for the 
@@ -434,7 +448,11 @@ def remove_nan_from_stream(data):
     '''Remove data points where the data is nan
     (so also removes the timestamp)'''   
     inds = numpy.nonzero( numpy.isnan(data) == True)   
-    return numpy.delete(data, inds[1], 1)
+    print len(inds[1])
+    if len(inds[1]) == 0:
+        return data
+    else:
+        return numpy.delete(data, inds[1], 1)
     
 def remove_nan_from_list(data_in):
     '''Removes nan from a list of numbers.'''
@@ -602,11 +620,17 @@ def generate_event_list(samples, tw):
             event_values[lgd,1] = ev
     return event_type, event_duration, event_recovery, event_values
 
-def top():   
+def top(start_date = [1,1,2011], end_date = [1,2,2011]):   
     '''Analysis of blood glucose and insulin dose data which has been 
     extracted into a xls spreadsheet from the manufacturers reporting tools.'''
     # Alarm levels
     levels = [20, 15, 8, 4, 3.7]
+    #convert to timestamps
+    start_date = datetime.datetime(start_date[2],start_date[1],start_date[0])
+    start_date = calendar.timegm(start_date.utctimetuple())
+    end_date = datetime.datetime(end_date[2],end_date[1],end_date[0])
+    end_date = calendar.timegm(end_date.utctimetuple())
+    
     # Generate a set of datastreams from the xls. each stream is a 
     # matrix with dimensions 2XN with [0] being the time and
     # [1] being the data.
@@ -615,7 +639,18 @@ def top():
             = import_module_xls('.')
     cgmstream, cgm_device_name, cgm_device_id = \
             get_CGM_data('./CGM_data')
-    print 'Data extracted from files'    
+    print 'Data extracted from files'
+    print type(basalstream)
+    bolusstream = select_time_period(bolusstream, start_date, end_date)
+    basalstream = select_time_period(basalstream, start_date, end_date)
+    basaladjustream = select_time_period(basaladjustream, start_date, end_date)
+    basaladjlstream = select_time_period(basaladjlstream, start_date, end_date)
+    bgstream = select_time_period(bgstream, start_date, end_date)
+    carbstream = select_time_period(carbstream, start_date, end_date)
+    eventstream = select_time_period(eventstream, start_date, end_date)
+    cgmstream = select_time_period(cgmstream, start_date, end_date)
+    print type(basalstream)    
+    print basalstream.shape  
     basalstream = remove_nan_from_stream(basalstream)
     bolusstream = remove_nan_from_stream(bolusstream)
     bgstream = remove_nan_from_stream(bgstream) 
