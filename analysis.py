@@ -545,7 +545,7 @@ def calc_dur_and_rt(event_values, event_state, levels):
     duration_high, duration_high3, duration_high2, duration_high1, \
     duration_warn, duration_low, duration_hypo, counts
 
-def  event_means(recovery,duration):
+def event_means(recovery,duration):
     # Generates the mean values of the durations and recovery times, rounded to
     # the nearest 0.1hr
     p = numpy.size(duration,1)
@@ -560,65 +560,57 @@ def  event_means(recovery,duration):
         num = 0
     return num,recovery,duration
     
-def generate_event_list(samples, tw):
-    
-    diffs = numpy.diff(tw.state[:,1])
+def generate_event_list(bg_tests, samples, states):
+    states = numpy.array(states)
+    oks = numpy.nonzero(states == 4)
+    diffs = numpy.diff(states)
     locs = numpy.nonzero(diffs !=0)
-    a = tw.state(locs,2)
-    b = tw.state(locs+1,2)
-    c = locs(numpy.find(a==4))
-    d = locs(numpy.find(b==4))+1
-    if not d or not c:
+    # indicied where move from ok to not ok    
+    c = numpy.intersect1d(locs[0], oks[0])
+    # indicies where you move from not ok to ok
+    d = numpy.intersect1d(locs[0]+1, oks[0])  
+    if len(d) ==0 or len(c) == 0:
         event_type = []
         event_duration = []
         event_recovery = []
         event_values = []
-    else:
-        if d[0] < c[0]:
-            # catching the tail end of event from previous time period
-            # remove to start in OK state [3]
-            d = d[1:-1]       
+    else:    
         # number of events
         num = len(c)
-        event_type = numpy.zeros((num,2))
-        event_duration = numpy.zeros((num,2))
-        event_recovery = numpy.zeros((num,2))
-        event_values = []
-        for lgd in range(num):
+        event_type = numpy.zeros((2,num))
+        event_duration = numpy.zeros((2,num))
+        event_recovery = numpy.zeros((2,num))
+        #event_values = []
+        for lgd in range(num-1):
             # skipping incomplete events at the begining and end.
             # automatically skips the first one as it starts at 
             #the first time the state is 4/
-            
-            #     if lgd == 1
-            #         continue
-            if lgd == num:
-                continue
-            else:
-                st = c[lgd]
-                ed = d[lgd]
-                ev = tw.bg_data[st:ed,:]
+            st = c[lgd]
+            ed = d[lgd]
+            ev = samples[:,st:ed]
+            # Setting the event timestamps to be the start of the event.            
+            event_type[0,lgd] = ev[0,0] 
+            event_duration[0,lgd] = ev[0,0] 
+            event_recovery[0,lgd] = ev[0,0] 
+           # event_values[1,lgd] = ev
             # find the max/min and get the state info from that time
-            [mx,ind] = max(ev[:,1])
+            mx = ev.max(1)[1]
             if mx < 8:
-                [mx,ind] = min(ev[:,1])
-            event_type[lgd,1] = tw.state[st + ind,1]
-            
-            event_type[lgd,0] = ev[0,0] 
-            event_duration[lgd,0] = ev[0,0] 
-            event_recovery[lgd,0] = ev[0,0] 
+                mx = ev.min(1)[1]
+            if numpy.isnan(mx):
+                continue
+            ind = (ev[1,:] == mx).nonzero()
+            event_type[1,lgd] = states[st + ind[0][0]]
             # duration of event in hours
-            event_duration[lgd,1] = (ev[-1,1] - ev[0,0] ) *  (24)
+            event_duration[1,lgd] = (ev[-1,1] - ev[0,0] ) *  (24)
             # find the first test done after event started.
-            tst1 = samples.bg_data[
-                numpy.find(samples.bg_data[:,0] >= ev[0,0] and
-                samples.bg_data[:,0] < ev[-1,1]),0]
+            tst1 = (bg_tests[0,:] > ev[0,0]).nonzero()
             # recovery time in hours
-            if not tst1:
-                event_recovery[lgd,1] = event_duration[lgd,1]
+            if len(tst1[0]) ==0:
+                event_recovery[1,lgd] = event_duration[1,lgd]
             else:
-                event_recovery[lgd,1] = (ev[-1,1] - tst1[0]) *  (24)
-            event_values[lgd,1] = ev
-    return event_type, event_duration, event_recovery, event_values
+                event_recovery[1,lgd] = (ev[-1,1] - bg_tests[0,tst1[0][0]]) *  (24)
+    return event_type, event_duration, event_recovery#, event_values
 
 def top(start_date = [1,1,2011], end_date = [1,2,2011]):   
     '''Analysis of blood glucose and insulin dose data which has been 
@@ -684,6 +676,10 @@ def top(start_date = [1,1,2011], end_date = [1,2,2011]):
     tm_lst_bolus = find_time_last(combinedstream, bolusstream)
 
     state = finding_states(combinedstream, levels, hi_lim_val)
+    event_type, event_duration, event_recovery = \
+    generate_event_list(bgstream, combinedstream, state)
+    event_num,event_recovery_mean,event_duration_mean = \
+    event_means(event_recovery,event_duration)
     # Generating daily totals for the carbs, basal, and bolus.
     # The basal needs to use the trace as the raw data does not give duration
     # directly, only records changes applied.
