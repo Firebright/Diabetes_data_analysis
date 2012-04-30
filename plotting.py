@@ -4,25 +4,36 @@ Created on Wed Jan 25 12:06:06 2012
 
 @author: afdm76
 """
-from matplotlib.pyplot import figure, show, hold, subplot, axes, plot_date, plot
+from matplotlib.pyplot import figure, show, hold, subplot, axes, plot_date, plot, hist
 import plottinglib
 import matplotlib.dates as mdates
 import numpy
 
 def main_plot(bgstream, state_streams, combined_trace,
               bg_day_min, bg_day_max, bg_day_mean, bg_day_std,
-              carb_dailys, bolus_dailys):
+              carb_dailys, bolus_dailys, event_num,event_recovery_mean,
+              event_duration_mean,event_type, 
+               event_duration, event_recovery):
     '''Generates the main overview plot.'''
     Fmt = mdates.DateFormatter('%d\n%b\n%Y')  
-    fig7 = figure(7, figsize=(16,10))
+    fig7 = figure(7, figsize=(24,15))
     #years    = mdates.YearLocator()   # every year
     days = mdates.WeekdayLocator(byweekday=mdates.MO)
     #Fmt = mdates.DateFormatter('%DD%MMM')
+    # Daily totals    
     ax1_loc = [0.05, 0.22, 0.4, 0.25]
-    ax2_loc = [0.05, 0.65, 0.9, 0.3]
-    ax3_loc = [0.75, 0.05, 0.22, 0.38]
-    ax4_loc = [0.42, 0.05, 0.3, 0.3]
+    # main data plot    
+    ax2_loc = [0.05, 0.65, 0.94, 0.3]
+    #Stability plot    
+    ax3_loc = [0.5, 0.06, 0.11, 0.19]
+    # pie graph
+    ax4_loc = [0.45, 0.29, 0.23, 0.23]
+    # carbs plot    
     ax5_loc = [0.05, 0.07, 0.4, 0.15]
+    # hypo durations hist
+    ax6_loc = [0.8, 0.12, 0.19, 0.15]
+    # hyper durations hist
+    ax7_loc = [0.8, 0.30, 0.19, 0.15]    
 #    ax6_loc = [0.05, 0.05, 0.4, 0.15]
     fracs = plottinglib.calc_fractions(state_streams)
     # Main BG time series plot
@@ -62,6 +73,62 @@ def main_plot(bgstream, state_streams, combined_trace,
     ax1.xaxis.set_major_locator(days)
     ax1.set_xlim(graph_x_lims[0], graph_x_lims[1])
     # Metabolic stability graph
+    stability_plot(ax3_loc,bg_day_mean, bg_day_std)
+    # Pie chart of time spent in each state
+    ax4 = axes(ax4_loc)
+    ax4.set_aspect(1)
+    plottinglib.light_filter_pie(ax4, fracs)
+    ax4.set_title('Fraction of time in each state')
+    # Plot of total daily carbs
+    ax5 = axes(ax5_loc)
+    ax5.plot_date(plottinglib.convert_to_dates(carb_dailys[0,:]),carb_dailys[1,:])
+    ax5.set_ylabel('Carbs (g)')
+    ax5.set_xlabel('Time')
+    ax5.set_xlim(graph_x_lims[0], graph_x_lims[1])
+    ax5.xaxis.set_major_formatter(Fmt)
+    ax5.xaxis.set_major_locator(days)
+    event_plot(ax6_loc, ax7_loc, event_num,event_recovery_mean,event_duration_mean,event_type, 
+               event_duration, event_recovery)
+    # Plot of ratio of Basal to Bolus TODO    
+#    ax6 = axes(ax6_loc)
+#    ax6.bar(plottinglib.convert_to_dates(bolus_dailys[0,:]),bolus_dailys[1,:])
+#    ax6.set_ylabel('Ratio')
+#    ax6.set_xlabel('Time')
+#    ax6.set_xlim(graph_x_lims[0], graph_x_lims[1])
+#    ax6.xaxis.set_major_formatter(Fmt)
+#    ax6.xaxis.set_major_locator(days)
+def event_plot(ax6_loc, ax7_loc, event_num,event_recovery_mean,event_duration_mean,event_type, 
+               event_duration, event_recovery):
+    '''Generates the main overview plot.'''
+   # fig8 = figure(8, figsize=(16,10))
+    #ax6_loc = [0.05, 0.05, 0.9, 0.4]
+    #ax7_loc = [0.05, 0.55, 0.9, 0.4]    
+    ax6 = axes(ax6_loc)
+    hold(True)
+    ax7 = axes(ax7_loc)
+    hold(True)
+    # the histogram of the data
+    low_duration = event_duration[0][1]
+    warn_duration = event_duration[1][1]
+    high1_duration = event_duration[2][1]
+    high2_duration = event_duration[3][1]
+    high3_duration = event_duration[4][1]
+    hypo_duration = event_duration[5][1]    
+    hyper_duration = event_duration[6][1]
+    n, bins, patches = ax7.hist([high1_duration, high2_duration, high3_duration],
+                                numpy.ceil(max(hyper_duration)),  
+                                normed=0, color=['MediumBlue', 'MidnightBlue', 'Navy'], 
+                                alpha=1, histtype='barstacked')
+    n, bins, patches = ax6.hist([warn_duration,low_duration], 
+                                numpy.ceil(max(hypo_duration)), 
+                                normed=0, color=['yellow', 'red'], 
+                                alpha=1, histtype='barstacked')
+    ax6.set_xlabel('Duration (hrs)')
+    ax6.set_ylabel('Num events')
+    #ax.set_xlim(40, 160)
+    #ax.set_ylim(0, 0.03)
+    
+def stability_plot(ax3_loc,bg_day_mean, bg_day_std):
     ax3 = axes(ax3_loc)
     ax3.set_aspect('equal', 'datalim')
     data_len = bg_day_mean.shape[1]
@@ -79,27 +146,6 @@ def main_plot(bgstream, state_streams, combined_trace,
     ax3.set_ylabel('Standard deviation')
     ax3.set_xlabel('Mean')
     ax3.set_title('Stability')
-    # Pie chart of time spent in each state
-    ax4 = axes(ax4_loc)
-    ax4.set_aspect(1)
-    plottinglib.light_filter_pie(ax4, fracs)
-    ax4.set_title('Fraction of time in each state')
-    # Plot of total daily carbs
-    ax5 = axes(ax5_loc)
-    ax5.plot_date(plottinglib.convert_to_dates(carb_dailys[0,:]),carb_dailys[1,:])
-    ax5.set_ylabel('Carbs (g)')
-    ax5.set_xlabel('Time')
-    ax5.set_xlim(graph_x_lims[0], graph_x_lims[1])
-    ax5.xaxis.set_major_formatter(Fmt)
-    ax5.xaxis.set_major_locator(days)
-    # Plot of ratio of Basal to Bolus TODO    
-#    ax6 = axes(ax6_loc)
-#    ax6.bar(plottinglib.convert_to_dates(bolus_dailys[0,:]),bolus_dailys[1,:])
-#    ax6.set_ylabel('Ratio')
-#    ax6.set_xlabel('Time')
-#    ax6.set_xlim(graph_x_lims[0], graph_x_lims[1])
-#    ax6.xaxis.set_major_formatter(Fmt)
-#    ax6.xaxis.set_major_locator(days)
     
 def spare_plot(bgstream, basalstream, bolusstream):
     '''TEMP.'''

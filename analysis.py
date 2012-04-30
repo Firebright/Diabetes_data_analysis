@@ -551,14 +551,14 @@ def event_means(recovery,duration):
     p = numpy.size(duration,1)
     if p >= 1:
         num = len(recovery)
-        recovery = round(numpy.mean(recovery)*10)/10
-        duration = round(numpy.mean(duration)*10)/10
+        mean_recovery = round(numpy.mean(recovery[1])*10)/10
+        mean_duration = round(numpy.mean(duration[1])*10)/10
     
     else:
-        recovery = 0
-        duration = 0
+        mean_recovery = 0
+        mean_duration = 0
         num = 0
-    return num,recovery,duration
+    return num,mean_recovery,mean_duration
     
 def generate_event_list(bg_tests, samples, states):
     states = numpy.array(states)
@@ -602,14 +602,14 @@ def generate_event_list(bg_tests, samples, states):
             ind = (ev[1,:] == mx).nonzero()
             event_type[1,lgd] = states[st + ind[0][0]]
             # duration of event in hours
-            event_duration[1,lgd] = (ev[-1,1] - ev[0,0] ) *  (24)
+            event_duration[1,lgd] = (ev[0,-1] - ev[0,0] ) / 3600.
             # find the first test done after event started.
             tst1 = (bg_tests[0,:] > ev[0,0]).nonzero()
             # recovery time in hours
             if len(tst1[0]) ==0:
                 event_recovery[1,lgd] = event_duration[1,lgd]
             else:
-                event_recovery[1,lgd] = (ev[-1,1] - bg_tests[0,tst1[0][0]]) *  (24)
+                event_recovery[1,lgd] = (ev[0,-1] - bg_tests[0,tst1[0][0]]) /3600.
     return event_type, event_duration, event_recovery#, event_values
 
 def top(start_date = [1,1,2011], end_date = [1,2,2011]):   
@@ -689,12 +689,16 @@ def top(start_date = [1,1,2011], end_date = [1,2,2011]):
     bg_day_min, bg_day_max, bg_day_mean, bg_day_std = daily_stats(
     combinedstream)
     #print 'Stats', bg_day_min.shape, bg_day_max.shape, bg_day_mean.shape ,bg_day_std.shape 
-    state_streams = generate_state_streams(combinedstream, state)    
+    state_streams = generate_state_streams(combinedstream, state) 
+    event_duration_streams = generate_state_streams(event_duration, event_type[1]) 
     print 'Data analysed'
     plotting.main_plot(bgstream, state_streams, combinedstream, 
               bg_day_min, bg_day_max, bg_day_mean, bg_day_std, carb_dailys, 
-              bolus_dailys)
+              bolus_dailys, event_num,event_recovery_mean,event_duration_mean,
+              event_type, event_duration_streams, event_recovery)
   #  plotting.spare_plot(bgstream, basalstream, bolusstream)
+    #plotting.event_plot(event_num,event_recovery_mean,event_duration_mean,
+     #                   event_type, event_duration_streams, event_recovery)
     plotting.comp_plot(bgstream, combinedstream, cgmstream)
     print 'Data plotted'
     
