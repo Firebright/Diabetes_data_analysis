@@ -46,6 +46,9 @@ def main_plot(bgstream, state_streams, combined_trace,
     wh_r = numpy.where(y_data < 3.7, True, False)
     wh_y = numpy.where(y_data <4.0, True, False)
     wh_b = numpy.where(y_data > 8.0, True, False)
+    # TODO replace the hard coded numbers with the limits passsed in.
+    ax2.plot_date(x_dates, numpy.ones_like(y_data) * 3.7, fmt = ':r', marker = None)
+    ax2.plot_date(x_dates, numpy.ones_like(y_data) * 8.0, fmt = ':b', marker = None)
     # Plot the data
     ax2.plot_date(x_dates, y_data, fmt = 'k-', marker = None)
     # Fill under the curve for each condition (warn, low,high).    
@@ -63,9 +66,12 @@ def main_plot(bgstream, state_streams, combined_trace,
     # Plot of daily means, mins and maxes    
     ax1 = axes(ax1_loc)
     hold(True)
-    ax1.plot_date(plottinglib.convert_to_dates(bg_day_min[0, :]), bg_day_min[1, :], 'r')
-    ax1.plot_date(plottinglib.convert_to_dates(bg_day_max[0, :]), bg_day_max[1, :], 'b')
+    ax1.plot_date(plottinglib.convert_to_dates(bg_day_min[0, :]), bg_day_min[1, :], '.r')
+    ax1.plot_date(plottinglib.convert_to_dates(bg_day_max[0, :]), bg_day_max[1, :], '.b')
     ax1.plot_date(plottinglib.convert_to_dates(bg_day_mean[0, :]), bg_day_mean[1, :], 'k.')
+    ax1.plot_date(plottinglib.convert_to_dates(bg_day_mean[0, :]), bg_day_mean[1, :], ':k')
+    ax1.plot_date(plottinglib.convert_to_dates(bg_day_mean[0, :]), numpy.ones_like(bg_day_mean[1, :]) * 3.7, ':r')
+    ax1.plot_date(plottinglib.convert_to_dates(bg_day_mean[0, :]), numpy.ones_like(bg_day_mean[1, :]) * 8.0, ':b')
     hold(False)    
     ax1.set_ylabel('Blood Glucose (mg/mmol)')
     ax1.set_title('Daily values')
@@ -81,7 +87,7 @@ def main_plot(bgstream, state_streams, combined_trace,
     ax4.set_title('Fraction of time in each state')
     # Plot of total daily carbs
     ax5 = axes(ax5_loc)
-    ax5.plot_date(plottinglib.convert_to_dates(carb_dailys[0,:]),carb_dailys[1,:])
+    ax5.plot_date(plottinglib.convert_to_dates(carb_dailys[0,:]),carb_dailys[1,:],':b')
     ax5.set_ylabel('Carbs (g)')
     ax5.set_xlabel('Time')
     ax5.set_xlim(graph_x_lims[0], graph_x_lims[1])

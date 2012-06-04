@@ -72,13 +72,13 @@ def find_time_last(ref_data, ev_data):
               #  print type(ev_data[0, last_ind[-1]])
                 tm_lst.append(ref_data[0, ruh] - ev_data[0, last_ind[-1]])
         return numpy.array(tm_lst)
-    
+
 def separate_hypo_data(bg_data, low_lim):
     '''Generate a list of hypo events'''
     hypo_data = bg_data[:, numpy.nonzero(bg_data[1, :] < low_lim)[0]]
     #print 'Size of hypo data', hypo_data.shape
     return hypo_data
-        
+
 def find_val_last(ref_data, ev_data):
     '''Finds the value of the last event in ev_data for each bg data point.'''
     val_lst = []
@@ -90,7 +90,7 @@ def find_val_last(ref_data, ev_data):
         else:
             val_lst.append(ev_data[1][last_ind[0][-1]])
     return numpy.array(val_lst)
-    
+
 def finding_high_limit(tm_lst_carbs, hi_lim):
     '''Calculating the effective high limit once recent carb intake 
     has been accounted for.'''
@@ -134,11 +134,11 @@ def finding_states(bg_data, levels, hi_lim_val):
         else:
             state.append(numpy.nan)
     return state
-        
+
 def etime(endtime, starttime):
     '''Returns the time elapsed between start and end.'''
     return endtime - starttime
-    
+
 def datevec(num):
     '''Converts a date number into a vector of 
     [year, month, day, hour, minute, second].'''
@@ -151,7 +151,7 @@ def time_gap(bg_point, data, ind = None):
         return numpy.nan
     else:
         return abs(etime(datevec(bg_point), datevec(data[ind, 0])))
-    
+
 def round2minute(val_in):
     '''Rounds timestamps to the nearest minute.
     Can deal with inputs as floats, arrays or lists.
@@ -190,15 +190,15 @@ def find_ind(data, tik, step):
 def select_time_period(input_stream, start, end):
     '''Takes a stream and returns only the section between 
     the starts date and end date.'''
-    print 'start',start
+    print 'start', start
     print 'input', input_stream[0][0:5]
     ind1 = numpy.nonzero(input_stream[0] < start)
-    print 'index',ind1[0][0:4]
+    print 'index', ind1[0][0:4]
     print 'end', end
     ind2 = numpy.nonzero(input_stream[0] > end)
     print 'index', ind2[0][0:4]
     #numpy.delete(input_stream, ind2[0], 1)
-    return numpy.delete(input_stream, numpy.hstack((ind1[0],ind2[0])), 1)
+    return numpy.delete(input_stream, numpy.hstack((ind1[0], ind2[0])), 1)
 
 def intialise_trace(data):
     '''Sets up the timebase of the trace and a placeholder list of nan for the 
@@ -207,14 +207,12 @@ def intialise_trace(data):
     data_start_time = round2minute(data[0, 0])
     data_end_time = round2minute(data[0, -1])    
     data_length = etime(data_end_time, data_start_time)
-    #print 'day start', data_start_time, 'day end', data_end_time, 'day length', data_length
     data_time_axis = data_start_time + \
         numpy.linspace(0,data_length-1,data_length/60)
     # setting initial values
     trace = numpy.zeros((len(data_time_axis), 1))
-   # print data_time_axis.shape, trace[:,0].shape
-    return numpy.vstack((data_time_axis, trace[:,0]))
-    
+    return numpy.vstack((data_time_axis, trace[:, 0]))
+
 def find_interp_val(start_time, end_time, req_time, start_val, end_val):
     '''Will return the linearly interpolated value 
     at the requested timestamp.'''  
@@ -232,7 +230,7 @@ def find_interp_time(start_time, end_time, start_val, end_val, req_val):
     sel_val = req_val - start_val    
     req_time = start_time + (sel_val / val_change) * elapsed
     return req_time
-    
+
 def generate_bg_trace(bg_data):
     '''Outputs the bg data on a minute by minute basis 
     using linear interpolation where neccessary.''' 
@@ -310,7 +308,8 @@ def get_daily_totals(stream):
     if stream.shape[1] == 0:
         return numpy.vstack((None, None))
     else:
-        day_breaks = numpy.nonzero(numpy.diff(numpy.floor(stream[0, :]/86400.)) != 0)       
+        day_breaks = numpy.nonzero(
+                        numpy.diff(numpy.floor(stream[0, :]/86400.)) != 0)
         for nse in range(len(day_breaks[0])):
             if nse == 0:
                 day_start = 0
@@ -320,8 +319,9 @@ def get_daily_totals(stream):
             else:
                 day_start = day_breaks[0][nse-1] + 1
                 day_end = day_breaks[0][nse]
-                time_out = numpy.hstack((time_out, stream[0, day_start]))            
-                day_sum = numpy.hstack((day_sum, sum(stream[1, day_start:day_end])))
+                time_out = numpy.hstack((time_out, stream[0, day_start]))
+                day_sum = numpy.hstack(
+                            (day_sum, sum(stream[1, day_start:day_end])))
     return numpy.vstack((time_out, day_sum))
 
 def daily_stats(stream):
@@ -330,7 +330,8 @@ def daily_stats(stream):
         return numpy.vstack((None, None)), numpy.vstack((None, None)), \
                numpy.vstack((None, None)), numpy.vstack((None, None))
     else:
-        day_breaks = numpy.nonzero(numpy.diff(numpy.floor(stream[0, :]/86400.)) != 0)       
+        day_breaks = numpy.nonzero(
+                        numpy.diff(numpy.floor(stream[0, :]/86400.)) != 0)
         for nse in range(len(day_breaks[0])):
             if nse == 0:
                 day_start = 0
@@ -341,14 +342,16 @@ def daily_stats(stream):
                 # Generating a minute by minute trace so that the
                 # std nd mean have equispaced data.
                 trace = generate_trace(stream[:, day_start:day_end])
-                st_dev = numpy.std(numpy.array(trace[1,:]))
+                st_dev = numpy.std(numpy.array(trace[1, :]))
                 means = numpy.mean(numpy.array(trace[1, :]))
             else:
                 day_start = day_breaks[0][nse-1] + 1
                 day_end = day_breaks[0][nse]
-                time_out = numpy.hstack((time_out, stream[0, day_start]))            
-                day_max = numpy.hstack((day_max, max(stream[1, day_start:day_end])))
-                day_min = numpy.hstack((day_min, min(stream[1, day_start:day_end])))
+                time_out = numpy.hstack((time_out, stream[0, day_start]))    
+                day_max = numpy.hstack(
+                            (day_max, max(stream[1, day_start:day_end])))
+                day_min = numpy.hstack(
+                            (day_min, min(stream[1, day_start:day_end])))
                 # Generating a minute by minute trace so that the
                 # std nd mean have equispaced data.
                 trace = generate_trace(stream[:, day_start:day_end])
@@ -372,48 +375,75 @@ def generate_state_streams(bg_data, state):
 def combine_data_streams(samples, CGM_data):
     '''using the bg data from the monitor to pin the CGM data 
     (assumes bg monitor is more reliable than the CGM)'''
-    #print 'input streams', numpy.shape(samples), numpy.shape(CGM_data)
+    extra_points_flag = 0
     if CGM_data.shape[1] == 0 or samples.shape[1] == 0:
         combined_data = None
     else:
         combined_data = numpy.copy(CGM_data)
+        # iterating over each BG point.
         for hs in range(samples.shape[1]-1):
             sample_start = samples[0, hs]
             sample_end = samples[0, hs+1]
-            # Finds the CGM datapoints either side of the first BG data point.
-            tmp1 = numpy.array(numpy.nonzero(CGM_data[0, :] <= sample_start))
-            tmp_start1 = tmp1[0][-1]
-            tmp2 = numpy.array(numpy.nonzero(CGM_data[0, :] >= sample_start))
-            tmp_end1 = tmp2[0][0]
-            #Finds the interpolated CGM value at the BG data point.
-            cgm_st_val = find_interp_val(CGM_data[0, tmp_start1], 
-                                     CGM_data[0, tmp_end1], sample_start,
-                                     CGM_data[1, tmp_start1], 
-                                     CGM_data[1, tmp_end1])
-            # Finds the CGM datapoints either side of the first BG data point.
-            tmp3 = numpy.array(numpy.nonzero(CGM_data[0, :] <= sample_end))
-            tmp_start2 = tmp3[0][-1]
-            tmp4 = numpy.array(numpy.nonzero(CGM_data[0, :] >=  sample_end))
-            tmp_end2 = tmp4[0][0]
-             #Finds the interpolated CGM value at the BG data point.
-            cgm_end_val = find_interp_val(CGM_data[0, tmp_start2], 
-                                     CGM_data[0, tmp_end2], sample_end,
-                                     CGM_data[1, tmp_start2], 
-                                     CGM_data[1, tmp_end2])
-            # difference between samples and CGM data
-            diff1 = samples[1, hs] - cgm_st_val
-            diff2 = samples[1, hs + 1] - cgm_end_val - diff1
-            temp = CGM_data[1, tmp_end1:tmp_start2]
-            temp_time = CGM_data[0, tmp_end1:tmp_start2]
-            # initially shift everything down by diff1
-            temp = temp + diff1
-            #then compress so get diff2 == 0
-            # Assumes difference is distributed linearly along range.
-            for hm in range(len(temp)):
-                correction = diff2 * (temp_time[hm] - sample_start) / \
-                                     (sample_end - sample_start)
-                combined_data[1, tmp_end1 + hm] = temp[hm] + correction
+            # Finds the CGM datapoints either side of the BG data points.
+            # TODO Check if it is valid if there are multiple BG points 
+            # between CGM points. 
+            [cgm_st_val, tmp_start1, tmp_end1] = find_CGM_at_BG(
+                            CGM_data[1, :], CGM_data[0, :], sample_start)
+            [cgm_end_val, tmp_start2, tmp_end2] = find_CGM_at_BG(
+                            CGM_data[1, :], CGM_data[0, :], sample_end)
+            if CGM_data[0, tmp_end1] > sample_end:
+                if extra_points_flag == 0:
+                    extra_points = numpy.array(samples[:,hs],ndmin=2)
+                    extra_points_t = numpy.copy(samples[0,hs])
+                    extra_points_d = numpy.copy(samples[1,hs])
+                    extra_points_flag = 1
+                else:         
+                    extra_points = numpy.append(extra_points, numpy.array(samples[:,hs], ndmin=2),0)
+                    extra_points_t = numpy.append(extra_points_t, samples[0,hs])
+                    extra_points_d = numpy.append(extra_points_d, samples[1,hs])
+            else:
+                # difference between samples and CGM data
+                diff1 = samples[1, hs] - cgm_st_val
+                diff2 = samples[1, hs + 1] - cgm_end_val - diff1
+                temp = CGM_data[1, tmp_end1:tmp_start2]
+                temp_time = CGM_data[0, tmp_end1:tmp_start2]
+                # initially shift everything down by diff1
+                temp = temp + diff1
+                #then compress so get diff2 == 0
+                # Assumes difference is distributed linearly along range.
+                for hm in range(len(temp)):
+                    correction = diff2 * (temp_time[hm] - sample_start) / \
+                                         (sample_end - sample_start)
+                    combined_data[1, tmp_end1 + hm] = temp[hm] + correction
+#        print 'extra points', numpy.hstack((extra_points_t, extra_points_d)), 'Combined data', combined_data       
+#        extra_points = numpy.hstack((numpy.array(extra_points_t), numpy.array(extra_points_d)))        
+#        numpy.array(extra_points_t).reshape((2,-1))        
+#        numpy.transpose(extra_points)
+#        print ' combined', numpy.shape(combined_data)
+#        print 't', numpy.shape(numpy.array(extra_points_t)), 'd', numpy.shape(numpy.array(extra_points_t))  
+        extra_points = numpy.vstack((numpy.array(extra_points_t), numpy.array(extra_points_d)))
+#        print extra_points, numpy.shape(extra_points)   
+        combined_data = numpy.hstack((combined_data, extra_points))
+#        print numpy.shape(combined_data)
+        ind = numpy.argsort(combined_data[0,:])  
+        combined_data = combined_data[:,ind]
+#        print numpy.shape(combined_data)
         return combined_data
+
+def find_CGM_at_BG(CGM_data, CGM_times, BG_time):
+    ''' Finds the CGM datapoints either side of the first BG data point 
+    and then calculate the interpolated value of the CGM at the BG time
+    point.'''
+    tmp1 = numpy.array(numpy.nonzero(CGM_times <= BG_time))
+    tmp_start = tmp1[0][-1]
+    tmp2 = numpy.array(numpy.nonzero(CGM_times >= BG_time))
+    tmp_end = tmp2[0][0]
+    new_cgm_val = find_interp_val(CGM_times[tmp_start], 
+                         CGM_times[tmp_end], BG_time,
+                         CGM_data[tmp_start], 
+                         CGM_data[tmp_end])
+    return new_cgm_val, tmp_start, tmp_end
+
 
 def unique_list(seq):
     '''Return the unique values in a list.'''
@@ -431,7 +461,7 @@ def list_subset(data, selectors, condition):
         if selectors[nsj] == condition:
             data_out.append(data[nsj])
     return data_out
-    
+
 def separate_states(bg_data, state):
     '''Separates out the high Ok and low data.'''
     high3 = list_subset(bg_data, state, 1)
@@ -443,7 +473,7 @@ def separate_states(bg_data, state):
     hyper = high3 + high2 + high1
     hypo = warn + low
     return high3, high2, high1, okay, warn, low, hyper, hypo
-    
+
 def remove_nan_from_stream(data):
     '''Remove data points where the data is nan
     (so also removes the timestamp)'''   
@@ -453,7 +483,7 @@ def remove_nan_from_stream(data):
         return data
     else:
         return numpy.delete(data, inds[1], 1)
-    
+
 def remove_nan_from_list(data_in):
     '''Removes nan from a list of numbers.'''
     data_out = []
@@ -465,8 +495,8 @@ def remove_nan_from_list(data_in):
 def calc_dur_and_rt(event_values, event_state, levels):
     '''Calculates duration of events and recovery times back to normal.'''
     # a = bg_events(4,:) - circshift(bg_events(4,:),[0 1])
-    b = numpy.nonzero(event_state[:,1] == 4)
-    
+    b = numpy.nonzero(event_state[:, 1] == 4)
+
     p1 = 1
     p2 = 1
     p3 = 1
@@ -487,23 +517,23 @@ def calc_dur_and_rt(event_values, event_state, levels):
     duration_high1 = []
     duration_warn = []
     duration_low = []
-    duration_hypo= []
+    duration_hypo = []
     for nw in range(len(b) -1):
         if b[nw+1] - b[nw] > 1:
-            c = event_values[b[nw]+1:b[nw+1]-1,2]
+            c = event_values[b[nw]+1:b[nw+1]-1, 2]
             if c[1] <= levels[4]:
-                [tp,I] = min(c)
+                [tp, I] = min(c)
             else:
-                [tp,I] = max(c)
+                [tp, I] = max(c)
             # find most extreeme state which has been recovered from in this
             # event
-            srf = event_state[b[nw]+I,2]
+            srf = event_state[b[nw]+I, 2]
             # recovery time in hours from start of event
-            rt = etime(datevec(event_state[b[nw+1],1]),
-                       datevec(event_state[b[nw]+ 1,1]))/3600
+            rt = etime(datevec(event_state[b[nw+1], 1]),
+                       datevec(event_state[b[nw]+ 1, 1]))/3600
             # duration of event in hours
-            dt = etime(datevec(event_state[b[nw+1],1]),
-                       datevec(event_state[b[nw],1]))/3600
+            dt = etime(datevec(event_state[b[nw+1], 1]),
+                       datevec(event_state[b[nw], 1]))/3600
             if srf == 6:
                 recovery_low[p6] = rt
                 duration_low[p6] = dt
@@ -539,27 +569,27 @@ def calc_dur_and_rt(event_values, event_state, levels):
                 recovery_high[ph] = rt
                 duration_high[ph] = dt
                 ph = ph +1
-    counts = [p1,p2,p3,p5,p6,ph,pp]
+    counts = [p1, p2, p3, p5, p6, ph, pp]
     return recovery_high, recovery_high3, recovery_high2, recovery_high1, \
     recovery_warn, recovery_low, recovery_hypo, \
     duration_high, duration_high3, duration_high2, duration_high1, \
     duration_warn, duration_low, duration_hypo, counts
 
-def event_means(recovery,duration):
-    # Generates the mean values of the durations and recovery times, rounded to
-    # the nearest 0.1hr
-    p = numpy.size(duration,1)
+def event_means(recovery, duration):
+    ''' Generates the mean values of the durations and recovery times, rounded to
+     the nearest 0.1hr'''
+    p = numpy.size(duration, 1)
     if p >= 1:
         num = len(recovery)
         mean_recovery = round(numpy.mean(recovery[1])*10)/10
         mean_duration = round(numpy.mean(duration[1])*10)/10
-    
+
     else:
         mean_recovery = 0
         mean_duration = 0
         num = 0
-    return num,mean_recovery,mean_duration
-    
+    return num, mean_recovery, mean_duration
+
 def generate_event_list(bg_tests, samples, states):
     states = numpy.array(states)
     oks = numpy.nonzero(states == 4)
@@ -573,25 +603,25 @@ def generate_event_list(bg_tests, samples, states):
         event_type = []
         event_duration = []
         event_recovery = []
-        event_values = []
+#        event_values = []
     else:    
         # number of events
         num = len(c)
-        event_type = numpy.zeros((2,num))
-        event_duration = numpy.zeros((2,num))
-        event_recovery = numpy.zeros((2,num))
+        event_type = numpy.zeros((2, num))
+        event_duration = numpy.zeros((2, num))
+        event_recovery = numpy.zeros((2, num))
         #event_values = []
-        for lgd in range(num-1):
+        for lgd in range(num - 1):
             # skipping incomplete events at the begining and end.
             # automatically skips the first one as it starts at 
             #the first time the state is 4/
             st = c[lgd]
             ed = d[lgd]
-            ev = samples[:,st:ed]
-            # Setting the event timestamps to be the start of the event.            
-            event_type[0,lgd] = ev[0,0] 
-            event_duration[0,lgd] = ev[0,0] 
-            event_recovery[0,lgd] = ev[0,0] 
+            ev = samples[:, st:ed]
+            # Setting the event timestamps to be the start of the event.
+            event_type[0, lgd] = ev[0, 0] 
+            event_duration[0, lgd] = ev[0, 0] 
+            event_recovery[0, lgd] = ev[0, 0] 
            # event_values[1,lgd] = ev
             # find the max/min and get the state info from that time
             mx = ev.max(1)[1]
@@ -599,30 +629,31 @@ def generate_event_list(bg_tests, samples, states):
                 mx = ev.min(1)[1]
             if numpy.isnan(mx):
                 continue
-            ind = (ev[1,:] == mx).nonzero()
-            event_type[1,lgd] = states[st + ind[0][0]]
+            ind = (ev[1, :] == mx).nonzero()
+            event_type[1, lgd] = states[st + ind[0][0]]
             # duration of event in hours
-            event_duration[1,lgd] = (ev[0,-1] - ev[0,0] ) / 3600.
+            event_duration[1, lgd] = (ev[0, -1] - ev[0, 0] ) / 3600.
             # find the first test done after event started.
-            tst1 = (bg_tests[0,:] > ev[0,0]).nonzero()
+            tst1 = (bg_tests[0, :] > ev[0, 0]).nonzero()
             # recovery time in hours
-            if len(tst1[0]) ==0:
-                event_recovery[1,lgd] = event_duration[1,lgd]
+            if len(tst1[0]) == 0:
+                event_recovery[1, lgd] = event_duration[1, lgd]
             else:
-                event_recovery[1,lgd] = (ev[0,-1] - bg_tests[0,tst1[0][0]]) /3600.
+                event_recovery[1, lgd] = (
+                                ev[0, -1] - bg_tests[0, tst1[0][0]]) / 3600.
     return event_type, event_duration, event_recovery#, event_values
 
-def top(start_date = [1,1,2011], end_date = [1,2,2011]):   
+def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):   
     '''Analysis of blood glucose and insulin dose data which has been 
     extracted into a xls spreadsheet from the manufacturers reporting tools.'''
     # Alarm levels
     levels = [20, 15, 8, 4, 3.7]
     #convert to timestamps
-    start_date = datetime.datetime(start_date[2],start_date[1],start_date[0])
+    start_date = datetime.datetime(start_date[2], start_date[1], start_date[0])
     start_date = calendar.timegm(start_date.utctimetuple())
-    end_date = datetime.datetime(end_date[2],end_date[1],end_date[0])
+    end_date = datetime.datetime(end_date[2], end_date[1], end_date[0])
     end_date = calendar.timegm(end_date.utctimetuple())
-    
+
     # Generate a set of datastreams from the xls. each stream is a 
     # matrix with dimensions 2XN with [0] being the time and
     # [1] being the data.
@@ -657,8 +688,8 @@ def top(start_date = [1,1,2011], end_date = [1,2,2011]):
     # blood glucose readings of the bg monitor.
     combinedstream = combine_data_streams(bgstream, cgmstream)
     print 'Streams combined'   
-    # separate out the hypo samples and use them to calculate the time since the
-    # last hypo event.
+    # separate out the hypo samples and use them to calculate the time since
+    # the last hypo event.
     hypostream = separate_hypo_data(bgstream, levels[4])
     tm_lst_hypo = find_time_last(combinedstream, hypostream)
     tm_nxt_hypo = find_time_next(combinedstream, hypostream)
@@ -679,7 +710,7 @@ def top(start_date = [1,1,2011], end_date = [1,2,2011]):
     event_type, event_duration, event_recovery = \
     generate_event_list(bgstream, combinedstream, state)
     event_num,event_recovery_mean,event_duration_mean = \
-    event_means(event_recovery,event_duration)
+    event_means(event_recovery, event_duration)
     # Generating daily totals for the carbs, basal, and bolus.
     # The basal needs to use the trace as the raw data does not give duration
     # directly, only records changes applied.
@@ -688,9 +719,9 @@ def top(start_date = [1,1,2011], end_date = [1,2,2011]):
     carb_dailys = get_daily_totals(carbstream)
     bg_day_min, bg_day_max, bg_day_mean, bg_day_std = daily_stats(
     combinedstream)
-    #print 'Stats', bg_day_min.shape, bg_day_max.shape, bg_day_mean.shape ,bg_day_std.shape 
     state_streams = generate_state_streams(combinedstream, state) 
-    event_duration_streams = generate_state_streams(event_duration, event_type[1]) 
+    event_duration_streams = generate_state_streams(
+                                    event_duration, event_type[1]) 
     print 'Data analysed'
     plotting.main_plot(bgstream, state_streams, combinedstream, 
               bg_day_min, bg_day_max, bg_day_mean, bg_day_std, carb_dailys, 
@@ -701,6 +732,6 @@ def top(start_date = [1,1,2011], end_date = [1,2,2011]):
      #                   event_type, event_duration_streams, event_recovery)
     plotting.comp_plot(bgstream, combinedstream, cgmstream)
     print 'Data plotted'
-    
+
 
 top()
