@@ -711,6 +711,12 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     generate_event_list(bgstream, combinedstream, state)
     event_num,event_recovery_mean,event_duration_mean = \
     event_means(event_recovery, event_duration)
+#    recovery_high3, recovery_high2, recovery_high1, recovery_okay, \ 
+#    recovery_warn, recovery_low, recovery_hyper, recovery_hypo = \
+#    separate_states(event_recovery, event_type[0,:])
+#    duration_high3, duration_high2, duration_high1, duration_okay, \ 
+#    duration_warn, duration_low, duration_hyper, duration_hypo = \
+#    separate_states(event_duration, event_type[0,:])
     # Generating daily totals for the carbs, basal, and bolus.
     # The basal needs to use the trace as the raw data does not give duration
     # directly, only records changes applied.
@@ -722,11 +728,13 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     state_streams = generate_state_streams(combinedstream, state) 
     event_duration_streams = generate_state_streams(
                                     event_duration, event_type[1]) 
+    event_recovery_streams = generate_state_streams(
+                                    event_recovery, event_type[1]) 
     print 'Data analysed'
     plotting.main_plot(bgstream, state_streams, combinedstream, 
               bg_day_min, bg_day_max, bg_day_mean, bg_day_std, carb_dailys, 
               bolus_dailys, event_num,event_recovery_mean,event_duration_mean,
-              event_type, event_duration_streams, event_recovery)
+              event_type, event_duration_streams, event_recovery_streams)
   #  plotting.spare_plot(bgstream, basalstream, bolusstream)
     #plotting.event_plot(event_num,event_recovery_mean,event_duration_mean,
      #                   event_type, event_duration_streams, event_recovery)

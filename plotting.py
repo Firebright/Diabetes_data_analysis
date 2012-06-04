@@ -4,7 +4,7 @@ Created on Wed Jan 25 12:06:06 2012
 
 @author: afdm76
 """
-from matplotlib.pyplot import figure, show, hold, subplot, axes, plot_date, plot, hist
+from matplotlib.pyplot import figure, show, hold, subplot, axes, plot_date, plot, hist, text, imshow,cm
 import plottinglib
 import matplotlib.dates as mdates
 import numpy
@@ -33,7 +33,8 @@ def main_plot(bgstream, state_streams, combined_trace,
     # hypo durations hist
     ax6_loc = [0.8, 0.12, 0.19, 0.15]
     # hyper durations hist
-    ax7_loc = [0.8, 0.30, 0.19, 0.15]    
+    ax7_loc = [0.8, 0.30, 0.19, 0.15] 
+    ax8_loc = [0.7, 0.12, 0.1, 0.33]
 #    ax6_loc = [0.05, 0.05, 0.4, 0.15]
     fracs = plottinglib.calc_fractions(state_streams)
     # Main BG time series plot
@@ -46,6 +47,8 @@ def main_plot(bgstream, state_streams, combined_trace,
     wh_r = numpy.where(y_data < 3.7, True, False)
     wh_y = numpy.where(y_data <4.0, True, False)
     wh_b = numpy.where(y_data > 8.0, True, False)
+#    imshow([[.6, .6],[.7,.7]], interpolation='bicubic', cmap=cm.copper,
+#         extent=(graph_x_lims[0], graph_x_lims[1], min(y_data), max(y_data)), alpha=1)
     # TODO replace the hard coded numbers with the limits passsed in.
     ax2.plot_date(x_dates, numpy.ones_like(y_data) * 3.7, fmt = ':r', marker = None)
     ax2.plot_date(x_dates, numpy.ones_like(y_data) * 8.0, fmt = ':b', marker = None)
@@ -93,7 +96,7 @@ def main_plot(bgstream, state_streams, combined_trace,
     ax5.set_xlim(graph_x_lims[0], graph_x_lims[1])
     ax5.xaxis.set_major_formatter(Fmt)
     ax5.xaxis.set_major_locator(days)
-    event_plot(ax6_loc, ax7_loc, event_num,event_recovery_mean,event_duration_mean,event_type, 
+    event_plot(ax6_loc, ax7_loc, ax8_loc, event_num,event_recovery_mean,event_duration_mean,event_type, 
                event_duration, event_recovery)
     # Plot of ratio of Basal to Bolus TODO    
 #    ax6 = axes(ax6_loc)
@@ -103,12 +106,13 @@ def main_plot(bgstream, state_streams, combined_trace,
 #    ax6.set_xlim(graph_x_lims[0], graph_x_lims[1])
 #    ax6.xaxis.set_major_formatter(Fmt)
 #    ax6.xaxis.set_major_locator(days)
-def event_plot(ax6_loc, ax7_loc, event_num,event_recovery_mean,event_duration_mean,event_type, 
+def event_plot(ax6_loc, ax7_loc, ax8_loc, event_num,event_recovery_mean,event_duration_mean,event_type, 
                event_duration, event_recovery):
     '''Generates the main overview plot.'''
    # fig8 = figure(8, figsize=(16,10))
     #ax6_loc = [0.05, 0.05, 0.9, 0.4]
-    #ax7_loc = [0.05, 0.55, 0.9, 0.4]    
+    #ax7_loc = [0.05, 0.55, 0.9, 0.4]  
+    print event_num
     ax6 = axes(ax6_loc)
     hold(True)
     ax7 = axes(ax7_loc)
@@ -131,9 +135,62 @@ def event_plot(ax6_loc, ax7_loc, event_num,event_recovery_mean,event_duration_me
                                 alpha=1, histtype='barstacked')
     ax6.set_xlabel('Duration (hrs)')
     ax6.set_ylabel('Num events')
+    ax8 = axes(ax8_loc)
+    hold(True)
+    col3 = 0.9
+    textbox(col3, 0, numpy.mean(event_recovery[5][1]))
+    textbox(col3, 0.1, numpy.mean(event_recovery[0][1]))
+    textbox(col3, 0.2, numpy.mean(event_recovery[1][1]))
+    textbox(col3, 0.4, '')
+    textbox(col3, 0.5, numpy.mean(event_recovery[6][1]))
+    textbox(col3, 0.6, numpy.mean(event_recovery[2][1]))
+    textbox(col3, 0.7, numpy.mean(event_recovery[3][1]))
+    textbox(col3, 0.8, numpy.mean(event_recovery[4][1]))
+    textbox(col3, 0.95, 'time')
+    textbox(col3, 1, 'Recovery')
+    col2 = 0.5
+#    textbox(col2, 0, numpy.mean(event_duration[5][1]))
+#    textbox(col2, 0.1, numpy.mean(event_duration[0][1]))
+#    textbox(col2, 0.2, numpy.mean(warn_duration[1][1]))
+#    textbox(col2, 0.4, '')
+#    textbox(col2, 0.5, numpy.mean(event_duration[6][1]))   
+#    textbox(col2, 0.6, numpy.mean(event_duration[2][1]))
+#    textbox(col2, 0.7, numpy.mean(event_duration[3][1]))
+#    textbox(col2, 0.8, numpy.mean(event_duration[4][1]))
+    textbox(col2, 0.95, 'Duration')
+    textbox(col2, 1, 'Event')
+    col1 = 0.2
+    textbox(col1, 0, len(event_recovery[5][1]))
+    textbox(col1, 0.1, len(event_recovery[0][1]))
+    textbox(col1, 0.2, len(event_recovery[1][1]))
+    textbox(col1, 0.4, '')
+    textbox(col1, 0.5, len(event_recovery[6][1]))
+    textbox(col1, 0.6, len(event_recovery[2][1]))
+    textbox(col1, 0.7, len(event_recovery[3][1]))
+    textbox(col1, 0.8, len(event_recovery[4][1]))
+    textbox(col1, 0.95, 'of events')
+    textbox(col1, 1, 'Number')
+    col0 = 0
+    textbox(col0, 0, 'Total hypo')
+    textbox(col0, 0.1, 'Low')
+    textbox(col0, 0.2, 'Warning')
+    textbox(col0, 0.4, 'OK')
+    textbox(col0, 0.5, 'Total high')
+    textbox(col0, 0.6, 'High1')
+    textbox(col0, 0.7, 'High2')
+    textbox(col0, 0.8, 'High3')
+    hold(False)
     #ax.set_xlim(40, 160)
     #ax.set_ylim(0, 0.03)
-    
+
+def textbox(x, y, val):
+       text(x, y, val, size=10, rotation=0.,
+         ha="center", va="center",
+         bbox = dict(ec=(1., 0.5, 0.5),
+                     fc=(1., 0.8, 0.8),
+                     )
+         )
+         
 def stability_plot(ax3_loc,bg_day_mean, bg_day_std):
     ax3 = axes(ax3_loc)
     ax3.set_aspect('equal', 'datalim')
