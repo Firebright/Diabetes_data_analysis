@@ -8,6 +8,7 @@ from matplotlib.pyplot import figure, show, hold, subplot, axes, plot_date, plot
 import plottinglib
 import matplotlib.dates as mdates
 import numpy
+from datetime import timedelta
 
 def main_plot(bgstream, state_streams, combined_trace,
               bg_day_min, bg_day_max, bg_day_mean, bg_day_std,
@@ -16,7 +17,7 @@ def main_plot(bgstream, state_streams, combined_trace,
                event_duration, event_recovery):
     '''Generates the main overview plot.'''
     Fmt = mdates.DateFormatter('%d\n%b\n%Y')  
-    fig7 = figure(7, figsize=(24,15))
+    fig7 = figure(7, figsize=(20,11))
     #years    = mdates.YearLocator()   # every year
     days = mdates.WeekdayLocator(byweekday=mdates.MO)
     #Fmt = mdates.DateFormatter('%DD%MMM')
@@ -137,59 +138,76 @@ def event_plot(ax6_loc, ax7_loc, ax8_loc, event_num,event_recovery_mean,event_du
     ax6.set_ylabel('Num events')
     ax8 = axes(ax8_loc)
     hold(True)
-    col3 = 0.9
-    textbox(col3, 0, numpy.mean(event_recovery[5][1]))
-    textbox(col3, 0.1, numpy.mean(event_recovery[0][1]))
-    textbox(col3, 0.2, numpy.mean(event_recovery[1][1]))
-    textbox(col3, 0.4, '')
-    textbox(col3, 0.5, numpy.mean(event_recovery[6][1]))
-    textbox(col3, 0.6, numpy.mean(event_recovery[2][1]))
-    textbox(col3, 0.7, numpy.mean(event_recovery[3][1]))
-    textbox(col3, 0.8, numpy.mean(event_recovery[4][1]))
-    textbox(col3, 0.95, 'time')
-    textbox(col3, 1, 'Recovery')
-    col2 = 0.5
-#    textbox(col2, 0, numpy.mean(event_duration[5][1]))
-#    textbox(col2, 0.1, numpy.mean(event_duration[0][1]))
-#    textbox(col2, 0.2, numpy.mean(warn_duration[1][1]))
+    col3 = 0.7
+    textbox(col3, 0.55, dec_time_to_str(numpy.mean(event_recovery[5][1])),"left")
+    textbox(col3, 0.6, dec_time_to_str(numpy.mean(event_recovery[0][1])),"left")
+    textbox(col3, 0.65, dec_time_to_str(numpy.mean(event_recovery[1][1])),"left")
+#    textbox(col3, 0.4, '')
+    textbox(col3, 0.75, dec_time_to_str(numpy.mean(event_recovery[6][1])),"left")
+    textbox(col3, 0.8, dec_time_to_str(numpy.mean(event_recovery[2][1])),"left")
+    textbox(col3, 0.85, dec_time_to_str(numpy.mean(event_recovery[3][1])),"left")
+    textbox(col3, 0.9, dec_time_to_str(numpy.mean(event_recovery[4][1])),"left")
+    textbox(col3, 0.95, 'time',"left")
+    textbox(col3, 1, 'Recovery',"left")
+    col2 = 0.3
+    textbox(col2, 0.55, dec_time_to_str(numpy.mean(event_duration[5][1])),"left")
+    textbox(col2, 0.6, dec_time_to_str(numpy.mean(event_duration[0][1])),"left")
+    textbox(col2, 0.65, dec_time_to_str(numpy.mean(event_duration[1][1])),"left")
 #    textbox(col2, 0.4, '')
-#    textbox(col2, 0.5, numpy.mean(event_duration[6][1]))   
-#    textbox(col2, 0.6, numpy.mean(event_duration[2][1]))
-#    textbox(col2, 0.7, numpy.mean(event_duration[3][1]))
-#    textbox(col2, 0.8, numpy.mean(event_duration[4][1]))
-    textbox(col2, 0.95, 'Duration')
-    textbox(col2, 1, 'Event')
-    col1 = 0.2
-    textbox(col1, 0, len(event_recovery[5][1]))
-    textbox(col1, 0.1, len(event_recovery[0][1]))
-    textbox(col1, 0.2, len(event_recovery[1][1]))
-    textbox(col1, 0.4, '')
-    textbox(col1, 0.5, len(event_recovery[6][1]))
-    textbox(col1, 0.6, len(event_recovery[2][1]))
-    textbox(col1, 0.7, len(event_recovery[3][1]))
-    textbox(col1, 0.8, len(event_recovery[4][1]))
-    textbox(col1, 0.95, 'of events')
-    textbox(col1, 1, 'Number')
+    textbox(col2, 0.75, dec_time_to_str(numpy.mean(event_duration[6][1])),"left")  
+    textbox(col2, 0.8, dec_time_to_str(numpy.mean(event_duration[2][1])),"left")
+    textbox(col2, 0.85, dec_time_to_str(numpy.mean(event_duration[3][1])),"left")
+    textbox(col2, 0.9, dec_time_to_str(numpy.mean(event_duration[4][1])),"left")
+    textbox(col2, 0.95, 'Duration',"left")
+    textbox(col2, 1, 'Event',"left")
+    col1 = 0.1
+    textbox(col1, 0.55, len(event_recovery[5][1]),"left")
+    textbox(col1, 0.6, len(event_recovery[0][1]),"left")
+    textbox(col1, 0.65, len(event_recovery[1][1]),"left")
+#    textbox(col1, 0.4, '')
+    textbox(col1, 0.75, len(event_recovery[6][1]),"left")
+    textbox(col1, 0.8, len(event_recovery[2][1]),"left")
+    textbox(col1, 0.85, len(event_recovery[3][1]),"left")
+    textbox(col1, 0.9, len(event_recovery[4][1]),"left")
+    textbox(col1, 0.95, 'of events',"right")
+    textbox(col1, 1, 'Number',"right")
     col0 = 0
-    textbox(col0, 0, 'Total hypo')
-    textbox(col0, 0.1, 'Low')
-    textbox(col0, 0.2, 'Warning')
-    textbox(col0, 0.4, 'OK')
-    textbox(col0, 0.5, 'Total high')
-    textbox(col0, 0.6, 'High1')
-    textbox(col0, 0.7, 'High2')
-    textbox(col0, 0.8, 'High3')
+    textbox(col0, 0.55, 'Total hypo',"right")
+    textbox(col0, 0.6, 'Low',"right")
+    textbox(col0, 0.65, 'Warning',"right")
+    textbox(col0, 0.7, 'OK',"right")
+    textbox(col0, 0.75, 'Total high',"right")
+    textbox(col0, 0.8, 'High1',"right")
+    textbox(col0, 0.85, 'High2',"right")
+    textbox(col0, 0.9, 'High3',"right")
     hold(False)
     #ax.set_xlim(40, 160)
     #ax.set_ylim(0, 0.03)
 
-def textbox(x, y, val):
+def textbox(x, y, val, align):
        text(x, y, val, size=10, rotation=0.,
-         ha="center", va="center",
+         ha=align, va="bottom",
          bbox = dict(ec=(1., 0.5, 0.5),
                      fc=(1., 0.8, 0.8),
                      )
          )
+         
+def dec_time_to_str(val):
+    '''Takes a duration in decimal hours an outputs a string in terms 
+    of hours and minutes.'''
+    hours, frac_hours = divmod(val, 1)
+    minutes, frac_mins = divmod(frac_hours * 60, 1)
+    hours = str(int(hours))
+    minutes = str(int(minutes))
+    if hours > 1 and minutes > 1:
+        output = ''.join([hours,'h',minutes,'mins'])
+    elif hours > 1 and minutes < 1:
+        output = ''.join([hours,'h'])
+    elif hours < 1 and minutes > 1:
+        output  = ''.join([minutes,'mins'])
+    else:
+        output = ''
+    return output
          
 def stability_plot(ax3_loc,bg_day_mean, bg_day_std):
     ax3 = axes(ax3_loc)

@@ -12,33 +12,33 @@ import datetime
 import plotting
 import calendar
 
-def add_pre_meal_flag(tm_nxt_carbs):
-    '''Generating a vector of 0's and 1's to designate if the current bg
-    data point is within 1/2 hour of carbs being eaten.
-    0 = no, 1 = yes.'''
-    pre_meal_flg = []
-    for ruh in range(len(tm_nxt_carbs)):       
-        if tm_nxt_carbs[ruh] < 60*30:
-            # BG reading is taken within 1/2 hour before the next lot of carbs.
-            # Therefore classed as pre-meal.
-            pre_meal_flg.append(1)
-        else:
-            pre_meal_flg.append(0)
-    return pre_meal_flg
-
-def add_post_meal_flag(tm_lst_carbs):
-    '''Generating a vector of 0's and 1's to designate if the current bg
-    data point is within 1 hour of carbs having been eaten.
-    0 = no, 1 = yes.'''
-    post_meal_flg = []
-    for ruh in range(len(tm_lst_carbs)):   
-        if tm_lst_carbs[ruh] < 60*60:
-            # BG reading is taken within 1 hour of the last lot of carbs.
-            # therefore classed as post-meal.
-            post_meal_flg.append(1)
-        else:
-            post_meal_flg.append(0)
-    return post_meal_flg
+#def add_pre_meal_flag(tm_nxt_carbs):
+#    '''Generating a vector of 0's and 1's to designate if the current bg
+#    data point is within 1/2 hour of carbs being eaten.
+#    0 = no, 1 = yes.'''
+#    pre_meal_flg = []
+#    for ruh in range(len(tm_nxt_carbs)):       
+#        if tm_nxt_carbs[ruh] < 60*30:
+#            # BG reading is taken within 1/2 hour before the next lot of carbs.
+#            # Therefore classed as pre-meal.
+#            pre_meal_flg.append(1)
+#        else:
+#            pre_meal_flg.append(0)
+#    return pre_meal_flg
+#
+#def add_post_meal_flag(tm_lst_carbs):
+#    '''Generating a vector of 0's and 1's to designate if the current bg
+#    data point is within 1 hour of carbs having been eaten.
+#    0 = no, 1 = yes.'''
+#    post_meal_flg = []
+#    for ruh in range(len(tm_lst_carbs)):   
+#        if tm_lst_carbs[ruh] < 60*60:
+#            # BG reading is taken within 1 hour of the last lot of carbs.
+#            # therefore classed as post-meal.
+#            post_meal_flg.append(1)
+#        else:
+#            post_meal_flg.append(0)
+#    return post_meal_flg
 
 def find_time_next(ref_data, ev_data):
     '''Finds how long until the next event in ev_data for each bg data point.'''
@@ -69,14 +69,12 @@ def find_time_last(ref_data, ev_data):
                 tm_lst.append(numpy.nan)
             else:
                 # Time until last meal (in seconds).
-              #  print type(ev_data[0, last_ind[-1]])
                 tm_lst.append(ref_data[0, ruh] - ev_data[0, last_ind[-1]])
         return numpy.array(tm_lst)
 
 def separate_hypo_data(bg_data, low_lim):
     '''Generate a list of hypo events'''
     hypo_data = bg_data[:, numpy.nonzero(bg_data[1, :] < low_lim)[0]]
-    #print 'Size of hypo data', hypo_data.shape
     return hypo_data
 
 def find_val_last(ref_data, ev_data):
@@ -231,37 +229,12 @@ def find_interp_time(start_time, end_time, start_val, end_val, req_val):
     req_time = start_time + (sel_val / val_change) * elapsed
     return req_time
 
-def generate_bg_trace(bg_data):
-    '''Outputs the bg data on a minute by minute basis 
-    using linear interpolation where neccessary.''' 
-    if not bg_data:
-        return None
-    data_time_axis, bg_trace = intialise_trace(bg_data)
-    for mwg in range(len(bg_data[0])-1):
-        # find the start and end times of the current event
-        start_time = bg_data[0][mwg]
-        end_time   = bg_data[0][mwg + 1]
-        start_val  = bg_data[1][mwg]
-        end_val    = bg_data[1][mwg + 1]
-        num_steps  = int(round(etime(end_time, start_time))/60.)
-        step = 120
-        increment = (end_val - start_val)/ num_steps
-        start_ind = find_ind(data_time_axis, start_time, step/2.)
-        for hes in range(num_steps):
-            # Adding linearly interpolated values to the trace.
-            if start_val != None and end_val != None and start_ind != None:
-                bg_trace[start_ind + hes] = start_val + (increment * hes)
-    return [data_time_axis, bg_trace]
-
 def generate_trace(stream):
     '''Outputs the data on a minute by minute basis 
     using linear interpolation where neccessary.''' 
     if stream.shape[1] == 0:
         return None
-    #print 'Stream shape', stream.shape
     trace = intialise_trace(stream)
-    #print 'Trace shape', trace.shape
-   # print 'time axis', data_time_axis[0]
     for mwg in range(stream.shape[1]-1):
         # find the start and end times of the current event
         start_time = stream[0, mwg]
@@ -274,7 +247,6 @@ def generate_trace(stream):
         start_ind = find_ind(trace[0, :], start_time, step/2.)
         for hes in range(num_steps):
             # Adding linearly interpolated values to the trace.
-           # print start_val, end_val, hes, increment, start_ind
             if start_val != None and end_val != None and start_ind != None:
                 trace[1, start_ind + hes] = start_val + (increment * hes)
     return trace
@@ -362,12 +334,12 @@ def daily_stats(stream):
            numpy.vstack((time_out, means)), \
            numpy.vstack((time_out, st_dev))
 
-def generate_state_streams(bg_data, state):
-    '''Contructs the state data stream from the separate sub streams.'''
+def generate_state_streams(data, state):
+    '''Separates the data stream into separate sub streams for each state.'''
     t_high3, t_high2, t_high1, t_ok, t_warn, t_low, t_hyper, t_hypo = \
-        separate_states(bg_data[0], state)
+        separate_states(data[0], state)
     high3, high2, high1, okay, warn, low, hyper, hypo = \
-        separate_states(bg_data[1], state)
+        separate_states(data[1], state)
     return [[t_low, low], [t_warn, warn], [t_ok, okay], \
            [t_high1, high1], [t_high2, high2], [t_high3, high3],
             [t_hypo, hypo], [t_hyper, hyper]]
@@ -415,19 +387,10 @@ def combine_data_streams(samples, CGM_data):
                     correction = diff2 * (temp_time[hm] - sample_start) / \
                                          (sample_end - sample_start)
                     combined_data[1, tmp_end1 + hm] = temp[hm] + correction
-#        print 'extra points', numpy.hstack((extra_points_t, extra_points_d)), 'Combined data', combined_data       
-#        extra_points = numpy.hstack((numpy.array(extra_points_t), numpy.array(extra_points_d)))        
-#        numpy.array(extra_points_t).reshape((2,-1))        
-#        numpy.transpose(extra_points)
-#        print ' combined', numpy.shape(combined_data)
-#        print 't', numpy.shape(numpy.array(extra_points_t)), 'd', numpy.shape(numpy.array(extra_points_t))  
         extra_points = numpy.vstack((numpy.array(extra_points_t), numpy.array(extra_points_d)))
-#        print extra_points, numpy.shape(extra_points)   
         combined_data = numpy.hstack((combined_data, extra_points))
-#        print numpy.shape(combined_data)
         ind = numpy.argsort(combined_data[0,:])  
         combined_data = combined_data[:,ind]
-#        print numpy.shape(combined_data)
         return combined_data
 
 def find_CGM_at_BG(CGM_data, CGM_times, BG_time):
@@ -492,88 +455,6 @@ def remove_nan_from_list(data_in):
             data_out.append(dkn)
     return data_out
 
-def calc_dur_and_rt(event_values, event_state, levels):
-    '''Calculates duration of events and recovery times back to normal.'''
-    # a = bg_events(4,:) - circshift(bg_events(4,:),[0 1])
-    b = numpy.nonzero(event_state[:, 1] == 4)
-
-    p1 = 1
-    p2 = 1
-    p3 = 1
-    p5 = 1
-    p6 = 1
-    ph = 1
-    pp = 1
-    recovery_high = []
-    recovery_high3 = []
-    recovery_high2 = []
-    recovery_high1 = []
-    recovery_warn = []
-    recovery_low = []
-    recovery_hypo = []
-    duration_high = []
-    duration_high3 = []
-    duration_high2 = []
-    duration_high1 = []
-    duration_warn = []
-    duration_low = []
-    duration_hypo = []
-    for nw in range(len(b) -1):
-        if b[nw+1] - b[nw] > 1:
-            c = event_values[b[nw]+1:b[nw+1]-1, 2]
-            if c[1] <= levels[4]:
-                [tp, I] = min(c)
-            else:
-                [tp, I] = max(c)
-            # find most extreeme state which has been recovered from in this
-            # event
-            srf = event_state[b[nw]+I, 2]
-            # recovery time in hours from start of event
-            rt = etime(datevec(event_state[b[nw+1], 1]),
-                       datevec(event_state[b[nw]+ 1, 1]))/3600
-            # duration of event in hours
-            dt = etime(datevec(event_state[b[nw+1], 1]),
-                       datevec(event_state[b[nw], 1]))/3600
-            if srf == 6:
-                recovery_low[p6] = rt
-                duration_low[p6] = dt
-                p6 = p6 +1
-                recovery_hypo[pp] = rt
-                duration_hypo[pp] = dt
-                pp = pp +1
-            elif srf == 5:
-                recovery_warn[p5] = rt
-                duration_warn[p5] = dt
-                p5 = p5 +1
-                recovery_hypo[pp] = rt
-                duration_hypo[pp] = dt
-                pp = pp +1
-            elif srf == 3:
-                recovery_high1[p3] = rt
-                duration_high1[p3] = dt
-                p3 = p3 +1
-                recovery_high[ph] = rt
-                duration_high[ph] = dt
-                ph = ph +1
-            elif srf == 2:
-                recovery_high2[p2] = rt
-                duration_high2[p2] = dt
-                p2 = p2 +1
-                recovery_high[ph] = rt
-                duration_high[ph] = dt
-                ph = ph +1
-            elif srf == 1:
-                recovery_high3[p1] = rt
-                duration_high3[p1] = dt
-                p1 = p1 +1
-                recovery_high[ph] = rt
-                duration_high[ph] = dt
-                ph = ph +1
-    counts = [p1, p2, p3, p5, p6, ph, pp]
-    return recovery_high, recovery_high3, recovery_high2, recovery_high1, \
-    recovery_warn, recovery_low, recovery_hypo, \
-    duration_high, duration_high3, duration_high2, duration_high1, \
-    duration_warn, duration_low, duration_hypo, counts
 
 def event_means(recovery, duration):
     ''' Generates the mean values of the durations and recovery times, rounded to
@@ -663,7 +544,6 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     cgmstream, cgm_device_name, cgm_device_id = \
             get_CGM_data('./CGM_data')
     print 'Data extracted from files'
-    print type(basalstream)
     bolusstream = select_time_period(bolusstream, start_date, end_date)
     basalstream = select_time_period(basalstream, start_date, end_date)
     basaladjustream = select_time_period(basaladjustream, start_date, end_date)
@@ -672,8 +552,6 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     carbstream = select_time_period(carbstream, start_date, end_date)
     eventstream = select_time_period(eventstream, start_date, end_date)
     cgmstream = select_time_period(cgmstream, start_date, end_date)
-    print type(basalstream)    
-    print basalstream.shape  
     basalstream = remove_nan_from_stream(basalstream)
     bolusstream = remove_nan_from_stream(bolusstream)
     bgstream = remove_nan_from_stream(bgstream) 
@@ -696,8 +574,8 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     # using the carbstream to calculate the time since the last meal.
     tm_lst_carbs = find_time_last(combinedstream, carbstream)
     tm_nxt_carbs = find_time_next(combinedstream, carbstream)
-    pre_meal_flg = add_pre_meal_flag(tm_nxt_carbs)
-    post_meal_flg = add_post_meal_flag(tm_lst_carbs)
+#    pre_meal_flg = add_pre_meal_flag(tm_nxt_carbs)
+#    post_meal_flg = add_post_meal_flag(tm_lst_carbs)
     # Calculating the high limit for each data point as this changes 
     #depending on the proximity of a meal.
     hi_lim_val = finding_high_limit(tm_lst_carbs, levels[2])
@@ -711,12 +589,6 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     generate_event_list(bgstream, combinedstream, state)
     event_num,event_recovery_mean,event_duration_mean = \
     event_means(event_recovery, event_duration)
-#    recovery_high3, recovery_high2, recovery_high1, recovery_okay, \ 
-#    recovery_warn, recovery_low, recovery_hyper, recovery_hypo = \
-#    separate_states(event_recovery, event_type[0,:])
-#    duration_high3, duration_high2, duration_high1, duration_okay, \ 
-#    duration_warn, duration_low, duration_hyper, duration_hypo = \
-#    separate_states(event_duration, event_type[0,:])
     # Generating daily totals for the carbs, basal, and bolus.
     # The basal needs to use the trace as the raw data does not give duration
     # directly, only records changes applied.
@@ -725,6 +597,7 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     carb_dailys = get_daily_totals(carbstream)
     bg_day_min, bg_day_max, bg_day_mean, bg_day_std = daily_stats(
     combinedstream)
+    print event_duration, event_type[1]
     state_streams = generate_state_streams(combinedstream, state) 
     event_duration_streams = generate_state_streams(
                                     event_duration, event_type[1]) 
