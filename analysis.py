@@ -4,6 +4,7 @@ Created on Tue Aug 23 15:57:57 2011
 
 @author: afdm76
 """
+#import pycallgraph
 import numpy
 #from matplotlib.dates import date2num, num2date
 from xls_import import import_module_xls
@@ -11,34 +12,6 @@ from cgm_import import get_CGM_data
 import datetime
 import plotting
 import calendar
-
-#def add_pre_meal_flag(tm_nxt_carbs):
-#    '''Generating a vector of 0's and 1's to designate if the current bg
-#    data point is within 1/2 hour of carbs being eaten.
-#    0 = no, 1 = yes.'''
-#    pre_meal_flg = []
-#    for ruh in range(len(tm_nxt_carbs)):       
-#        if tm_nxt_carbs[ruh] < 60*30:
-#            # BG reading is taken within 1/2 hour before the next lot of carbs.
-#            # Therefore classed as pre-meal.
-#            pre_meal_flg.append(1)
-#        else:
-#            pre_meal_flg.append(0)
-#    return pre_meal_flg
-#
-#def add_post_meal_flag(tm_lst_carbs):
-#    '''Generating a vector of 0's and 1's to designate if the current bg
-#    data point is within 1 hour of carbs having been eaten.
-#    0 = no, 1 = yes.'''
-#    post_meal_flg = []
-#    for ruh in range(len(tm_lst_carbs)):   
-#        if tm_lst_carbs[ruh] < 60*60:
-#            # BG reading is taken within 1 hour of the last lot of carbs.
-#            # therefore classed as post-meal.
-#            post_meal_flg.append(1)
-#        else:
-#            post_meal_flg.append(0)
-#    return post_meal_flg
 
 def find_time_next(ref_data, ev_data):
     '''Finds how long until the next event in ev_data for each bg data point.'''
@@ -108,8 +81,13 @@ def finding_high_limit(tm_lst_carbs, hi_lim):
                 hi_lim_val.append(hi_lim)
     return hi_lim_val
 
-def finding_states(bg_data, levels, hi_lim_val):
+def finding_states(bg_data, levels,  carbstream):
     '''Clasifying each blood glucose value as high, OK or low.'''
+    # using the carbstream to calculate the time since the last meal.
+    tm_lst_carbs = find_time_last(bg_data, carbstream)
+    # Calculating the high limit for each data point as this changes 
+    #depending on the proximity of a meal.
+    hi_lim_val = finding_high_limit(tm_lst_carbs, levels[2])
     hi3_lim = levels[0]
     hi2_lim = levels[1]
     warn_lim = levels[3]
@@ -137,19 +115,6 @@ def etime(endtime, starttime):
     '''Returns the time elapsed between start and end.'''
     return endtime - starttime
 
-def datevec(num):
-    '''Converts a date number into a vector of 
-    [year, month, day, hour, minute, second].'''
-    vec = datetime.datetime.fromtimestamp(num)
-    return [vec.year, vec.month, vec.day, vec.hour, vec.minute, vec.second]
-
-def time_gap(bg_point, data, ind = None):
-    ''' Time between events (in seconds).'''
-    if ind == None:
-        return numpy.nan
-    else:
-        return abs(etime(datevec(bg_point), datevec(data[ind, 0])))
-
 def round2minute(val_in):
     '''Rounds timestamps to the nearest minute.
     Can deal with inputs as floats, arrays or lists.
@@ -163,14 +128,6 @@ def round2minute(val_in):
     if type(val_out) == 'numpy.ndarray' :
         val_out = val_out.flatten().tolist()
     return val_out
-
-def roundstream2minute(stream):
-    '''Rounds the timestamps in a stream to the nearest minute.'''
-   # print 'Round input',numpy.shape(stream)
-    times = stream[0, :]
-    data = stream[1, :]
-    times = numpy.round(times / 60.) * 60.
-    return numpy.vstack((times, data))
 
 def find_ind(data, tik, step):
     '''Finds the index where ti is between +- step/2.'''
@@ -219,15 +176,6 @@ def find_interp_val(start_time, end_time, req_time, start_val, end_val):
     val_change = start_val - end_val
     req_val = start_val + (sel_time / elapsed) * val_change
     return req_val
-
-def find_interp_time(start_time, end_time, start_val, end_val, req_val):
-    '''Will return the linearly interpolated time
-    for the requested value.'''
-    elapsed = end_time - start_time
-    val_change = end_val - start_val
-    sel_val = req_val - start_val    
-    req_time = start_time + (sel_val / val_change) * elapsed
-    return req_time
 
 def generate_trace(stream):
     '''Outputs the data on a minute by minute basis 
@@ -447,15 +395,6 @@ def remove_nan_from_stream(data):
     else:
         return numpy.delete(data, inds[1], 1)
 
-def remove_nan_from_list(data_in):
-    '''Removes nan from a list of numbers.'''
-    data_out = []
-    for dkn in data_in:
-        if not numpy.isnan(dkn):
-            data_out.append(dkn)
-    return data_out
-
-
 def event_means(recovery, duration):
     ''' Generates the mean values of the durations and recovery times, rounded to
      the nearest 0.1hr'''
@@ -522,8 +461,15 @@ def generate_event_list(bg_tests, samples, states):
             else:
                 event_recovery[1, lgd] = (
                                 ev[0, -1] - bg_tests[0, tst1[0][0]]) / 3600.
-    return event_type, event_duration, event_recovery#, event_values
-
+    event_duration_streams = generate_state_streams(
+                                    event_duration, event_type[1]) 
+    event_recovery_streams = generate_state_streams(
+                                    event_recovery, event_type[1])
+    event_num, event_recovery_mean, event_duration_mean = \
+    event_means(event_recovery, event_duration)
+    return event_type, event_duration_streams, event_recovery_streams, \
+            event_num, event_duration_mean, event_recovery_mean
+    
 def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):   
     '''Analysis of blood glucose and insulin dose data which has been 
     extracted into a xls spreadsheet from the manufacturers reporting tools.'''
@@ -571,24 +517,17 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     hypostream = separate_hypo_data(bgstream, levels[4])
     tm_lst_hypo = find_time_last(combinedstream, hypostream)
     tm_nxt_hypo = find_time_next(combinedstream, hypostream)
-    # using the carbstream to calculate the time since the last meal.
-    tm_lst_carbs = find_time_last(combinedstream, carbstream)
     tm_nxt_carbs = find_time_next(combinedstream, carbstream)
-#    pre_meal_flg = add_pre_meal_flag(tm_nxt_carbs)
-#    post_meal_flg = add_post_meal_flag(tm_lst_carbs)
-    # Calculating the high limit for each data point as this changes 
-    #depending on the proximity of a meal.
-    hi_lim_val = finding_high_limit(tm_lst_carbs, levels[2])
     # using the bolusstream to calculate the time since the last bolus 
     #and  its value. 
     val_lst_bolus = find_val_last(combinedstream, bolusstream)
     tm_lst_bolus = find_time_last(combinedstream, bolusstream)
 
-    state = finding_states(combinedstream, levels, hi_lim_val)
-    event_type, event_duration, event_recovery = \
-    generate_event_list(bgstream, combinedstream, state)
-    event_num,event_recovery_mean,event_duration_mean = \
-    event_means(event_recovery, event_duration)
+    state = finding_states(combinedstream, levels, carbstream)
+    event_type, event_duration_streams, event_recovery_streams, \
+     event_num, event_duration_mean, event_recovery_mean = \
+     generate_event_list(bgstream, combinedstream, state)
+    
     # Generating daily totals for the carbs, basal, and bolus.
     # The basal needs to use the trace as the raw data does not give duration
     # directly, only records changes applied.
@@ -597,12 +536,9 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     carb_dailys = get_daily_totals(carbstream)
     bg_day_min, bg_day_max, bg_day_mean, bg_day_std = daily_stats(
     combinedstream)
-    print event_duration, event_type[1]
     state_streams = generate_state_streams(combinedstream, state) 
-    event_duration_streams = generate_state_streams(
-                                    event_duration, event_type[1]) 
-    event_recovery_streams = generate_state_streams(
-                                    event_recovery, event_type[1]) 
+    
+     
     print 'Data analysed'
     plotting.main_plot(bgstream, state_streams, combinedstream, 
               bg_day_min, bg_day_max, bg_day_mean, bg_day_std, carb_dailys, 
