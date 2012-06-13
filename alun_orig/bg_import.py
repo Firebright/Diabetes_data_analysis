@@ -14,7 +14,7 @@ Created on Mon Jan 16 17:06:12 2012
 from locate_data import dir_list_gen
 import numpy
 import csv
-from cgm_import import convert_units, 
+from cgm_import import convert_units
 
 def BG_data_extraction(data_in):
     '''Conditioning the extracted raw CGM data into a datastream.'''
