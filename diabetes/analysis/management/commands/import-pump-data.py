@@ -1,11 +1,12 @@
 #from optparse import make_option
 from django.core.management.base import LabelCommand, CommandError
+from django.db.models import Avg, Count, Max, Min, StdDev, Sum, Variance
 
-from analysis.models import DataFile, Pump
-#from xlrd import open_workbook, biffh
-from datetime import datetime
+from analysis.models import DataFile, Pump, DailySummary, Events
+from datetime import datetime, timedelta
 import os
-import time, csv
+import time
+import csv
 
 class Command(LabelCommand):
     args = '<path/to/datafiles/>'
@@ -47,6 +48,9 @@ class Command(LabelCommand):
                 self._parsefile(datafile_obj)
             else:
                 print "\n\n%s - has already been imported" % filename
+
+            # Data imported, now do summary analysis
+            self._data_analysis()
 
         print "\nImport finished at " + str(datetime.utcnow())
         return None
@@ -99,7 +103,7 @@ class Command(LabelCommand):
         # The data structure changes over time, and new columns are added (and perhaps removed) so map each file to a dictionary
         column_headers = []
         for i,row in enumerate(datareader):
-#            if i > 100:
+#            if i > 1000:
 #                continue
 
 #            print "_parsefile(): line " + str(i) + ": " + str(row)
@@ -115,38 +119,50 @@ class Command(LabelCommand):
 
         return None
 
-
     def _parseline(self, entrydict, datafile_obj):
 #        print "_parseline() called with: " + str(entrydict)
-        pump = Pump()
-        pump.data_file = datafile_obj
-        pump.datetime = self._parse_timestamp(entrydict.get('date'), entrydict.get('time'))
-        pump.blood_glucose = self._cast('int', entrydict.get('bg (mg/dl)'))
-        pump.bolus_pen = self._cast('float', entrydict.get('insulin1 (units)'))
-        pump.insulin2 = self._cast('float', entrydict.get('insulin2 (units)'))
-        pump.insulin3 = self._cast('float', entrydict.get('insulin3 (units)'))
-        pump.bolus_pump = self._cast('float', entrydict.get('insulin pump (units)'))
-        pump.control_solutions = entrydict.get('bg control')
-        pump.bg_lab = self._cast('int', entrydict.get('bg lab (mg/dl)'))
-        pump.carbs = self._cast('int', entrydict.get('carbohydrates (g)'))
-        pump.system_defined_events = entrydict.get('system-defined events')
-        pump.hba1c = self._cast('float', entrydict.get('hba1c (percent)'))
-        pump.hba1 = self._cast('float', entrydict.get('hba1 (percent)'))
-        pump.ketones = self._cast('float', entrydict.get('ketones'))
-        pump.weight = self._cast('float', entrydict.get('weight (kg)'))
-        pump.height = self._cast('float', entrydict.get('height (cm)'))
-        pump.blood_pressure_systolic = self._cast('int', entrydict.get('blood pressure (systolic) (kpa)'))
-        pump.blood_pressure_diastolic = self._cast('int', entrydict.get('blood pressure (diastolic) (kpa)'))
-        pump.pulse = self._cast('int', entrydict.get('pulse (bpm)'))
-        pump.basal = self._cast('float', entrydict.get('insulin rate (units/hour)'))
-        pump.insulin_tdd = self._cast('float', entrydict.get('insulin tdd (units)'))
-        pump.save(force_insert=True)
+        pump = dict()
+        pump["data_file"] = datafile_obj
+        pump["datetime"] = self._parse_timestamp(entrydict.get('date'), entrydict.get('time'))
+        pump["blood_glucose"] = self._cast('int', entrydict.get('bg (mg/dl)'))
+        pump["bolus_pen"] = self._cast('float', entrydict.get('insulin1 (units)'))
+        pump["insulin2"] = self._cast('float', entrydict.get('insulin2 (units)'))
+        pump["insulin3"] = self._cast('float', entrydict.get('insulin3 (units)'))
+        pump["bolus_pump"] = self._cast('float', entrydict.get('insulin pump (units)'))
+        pump["control_solutions"] = entrydict.get('bg control')
+        pump["bg_lab"] = self._cast('int', entrydict.get('bg lab (mg/dl)'))
+        pump["carbs"] = self._cast('int', entrydict.get('carbohydrates (g)'))
+        pump["system_defined_events"] = entrydict.get('system-defined events')
+        pump["hba1c"] = self._cast('float', entrydict.get('hba1c (percent)'))
+        pump["hba1"] = self._cast('float', entrydict.get('hba1 (percent)'))
+        pump["ketones"] = self._cast('float', entrydict.get('ketones'))
+        pump["weight"] = self._cast('float', entrydict.get('weight (kg)'))
+        pump["height"] = self._cast('float', entrydict.get('height (cm)'))
+        pump["blood_pressure_systolic"] = self._cast('int', entrydict.get('blood pressure (systolic) (kpa)'))
+        pump["blood_pressure_diastolic"] = self._cast('int', entrydict.get('blood pressure (diastolic) (kpa)'))
+        pump["pulse"] = self._cast('int', entrydict.get('pulse (bpm)'))
+        pump["basal"] = self._cast('float', entrydict.get('insulin rate (units/hour)'))
+        pump["insulin_tdd"] = self._cast('float', entrydict.get('insulin tdd (units)'))
+
+        created, obj = Pump.objects.get_or_create(
+            datetime = pump.get("datetime"),
+            defaults = pump
+        )
+        if created:
+            obj.save()
+        else:
+            print "_parseline(): Duplicate record being imported"
+            if obj.blood_glucose != pump.get("blood_glucose"):
+                print "The sky is falling! Blood Glucose does not match {0} vs {1}".format(
+                    obj.blood_glucose,
+                    pump.get("blood_glucose")
+                )
 
         return None
 
-
-    def _cast(self, type, inputstring):
-        if inputstring is None:
+    def _cast(self, type, in_val):
+        inputstring = str(in_val)
+        if inputstring == 'None':
             return None
         elif inputstring.isspace():
             return None
@@ -158,7 +174,6 @@ class Command(LabelCommand):
         else:
             return None
 
-
     def _parse_timestamp(self,d, f):
         """Adjust timestamp supplied to GMT and returns a datetime object"""
         initialstring = d + ' ' + f
@@ -167,3 +182,203 @@ class Command(LabelCommand):
         base_time = time.strptime(initialstring,input_format)
         dt = datetime.fromtimestamp(time.mktime(base_time))
         return dt #"{0:%Y-%m-%d %H:%M:%S}".format(ts)
+
+    def _data_analysis(self):
+        """
+        Describe what's going on here....
+        """
+        self._generate_daily_summaries()
+        self._generate_events()
+        return None
+
+    def _generate_daily_summaries(self):
+        # Find the earliest date(time) in the dataset, use this as our Day 0
+        # Create a loop of dates
+        try:
+            day0 = Pump.objects.order_by('datetime')[0]
+            day_end = Pump.objects.order_by('-datetime')[0]
+        except IndexError:
+            return None
+        start_date = day0.datetime.replace(hour=0, minute=0,second=0,microsecond=0)
+        end_date = start_date + timedelta(days = 1)
+
+        print """ds_dict['date'],
+        ds_dict['carbs_consumed'],
+        bolus_pen,
+        bolus_pen_count,
+        bolus_pump,
+        ds_dict['bolus'],
+        ds_dict['basal'],
+        ds_dict['bg_max'],
+        ds_dict['bg_min'],
+        ds_dict['bg_mean'],
+        ds_dict['bg_std'],
+        ds_dict['number_of_datapoints'],
+        ds_dict['number_of_bg_test']
+        """
+        while day_end.datetime > end_date:
+#            print "_generate_daily_summaries(): start date: {0} - {1}".format(start_date, end_date)
+            ds_dict = dict()
+            ds_dict["date"] = start_date
+            ds_dict["carbs_consumed"] = self._cast(
+                'int',
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    carbs__isnull=False
+                ).aggregate(
+                    Sum('carbs')
+                ).get('carbs__sum')
+            )
+            bolus_pen = self._cast(
+                'float',
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    bolus_pen__isnull=False
+                ).aggregate(
+                    Sum('bolus_pen')
+                ).get('bolus_pen__sum')
+            )
+            bolus_pen_count = self._cast(
+                'float',
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    bolus_pen__isnull=False
+                ).aggregate(
+                    Count('bolus_pen')
+                ).get('bolus_pen__count')
+            )
+            bolus_pump = self._cast(
+                'float',
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    bolus_pump__isnull=False
+                ).aggregate(
+                    Sum('bolus_pump')
+                ).get('bolus_pump__sum')
+            )
+#            print '_generate_daily_summaries() bolus_pen={0}, bolus_pump={1}, bolus_pen_count={2}'.format(bolus_pen,bolus_pump,bolus_pen_count)
+            if bolus_pen and bolus_pump:
+                ds_dict["bolus"] = bolus_pen + bolus_pump
+            else:
+                ds_dict["bolus"] = None
+            ds_dict["basal"] = self._basal_total_calc(start_date, end_date)
+            ds_dict["bg_max"] = self._convert_blood_glucose_uk(
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    blood_glucose__isnull=False
+                ).aggregate(
+                    Max('blood_glucose')
+                ).get('blood_glucose__max')
+            )
+            ds_dict["bg_min"] = self._convert_blood_glucose_uk(
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    blood_glucose__isnull=False
+                ).aggregate(
+                    Min('blood_glucose')
+                ).get('blood_glucose__min')
+            )
+            ds_dict["bg_mean"] = self._convert_blood_glucose_uk(
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    blood_glucose__isnull=False
+                ).aggregate(
+                    Avg('blood_glucose')
+                ).get('blood_glucose__avg')
+            )
+            ds_dict["bg_std"] = self._convert_blood_glucose_uk(
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    blood_glucose__isnull=False
+                ).aggregate(
+                    StdDev('blood_glucose')
+                ).get('blood_glucose__stddev')
+            )
+            ds_dict["number_of_datapoints"] = self._cast(
+                'int',
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date
+                ).aggregate(
+                    Count('datetime')
+                ).get('datetime__count')
+            )
+            ds_dict["number_of_bg_test"] = self._cast(
+                'int',
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    blood_glucose__isnull=False
+                ).aggregate(
+                    Count('blood_glucose')
+                ).get('blood_glucose__count')
+            )
+
+            start_date = end_date
+            end_date = start_date + timedelta(days = 1)
+
+#            print ds_dict
+            print "{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}".format(
+                ds_dict['date'],
+                ds_dict['carbs_consumed'],
+                bolus_pen,
+                bolus_pen_count,
+                bolus_pump,
+                ds_dict['bolus'],
+                ds_dict['basal'],
+                ds_dict['bg_max'],
+                ds_dict['bg_min'],
+                ds_dict['bg_mean'],
+                ds_dict['bg_std'],
+                ds_dict['number_of_datapoints'],
+                ds_dict.get('number_of_bg_test')
+            )
+        return None
+
+    def _basal_total_calc(self,sd, ed):
+        """
+        Calculate the basal total for the day, but make it accurate to the second, rather than microsecond.
+        """
+        basal_list = []
+        for record in Pump.objects.filter(datetime__lt=ed, datetime__gt=sd, basal__isnull=False).order_by('datetime'):
+            basal_list.append((record.datetime.replace(microsecond=0), record.basal))
+        try:
+            obj = Pump.objects.filter(datetime__lt=sd, basal__isnull=False).order_by('-datetime')[0]
+            basal_list.insert(0, (obj.datetime.replace(microsecond=0), obj.basal))
+        except IndexError:
+            return 0.0
+        # 86400 seconds in a day
+        if len(basal_list) < 2:
+            return 0.0
+        previous = basal_list[1]
+        seconds_so_far = 0
+        basal_so_far = 0.0
+        for item in basal_list[2:]:
+            duration = (item[0]-previous[0]).total_seconds()
+            basal_so_far += float(previous[1] * duration)
+            seconds_so_far += duration
+        # now calculate the duration of the last datapoint
+        duration = (basal_list[-1][0]-ed).total_seconds()
+        basal_so_far += basal_list[-1][1] * duration
+        seconds_so_far += duration
+        # now add on the basal from the previous day's last value for the remaining time
+        basal_so_far += float(basal_list[0][1] * (86400-seconds_so_far))
+        return float(basal_so_far)
+
+    def _convert_blood_glucose_uk(self, bg):
+        val = self._cast('float',bg)
+        if val:
+            return val / 18.02
+        else:
+            return None
+
+    def _generate_events(self):
+        return None
