@@ -15,7 +15,51 @@ class DataFile(models.Model):
     def __unicode__(self):
         return self.file_name
 
+class CGM(models.Model):
+    data_file = models.ForeignKey(DataFile)
+    datetime = models.DateTimeField()    #DATEEVENT
+    timeslot = models.IntegerField(null=True, blank=True)#TIMESLOT
+    event_type = models.IntegerField(null=True, blank=True)#EVENTTYPE
+    device_model = models.CharField(null=True, blank=True, max_length=50)#DEVICE_MODEL
+    device_id = models.CharField(null=True, blank=True, max_length=50)#DEVICE_ID	
+    v_ev_type = models.IntegerField(null=True, blank=True)#VENDOR_EVENT_TYPE_ID	
+    v_ev_id =  models.IntegerField(null=True, blank=True)#VENDOR_EVENT_ID	
+    key0 = models.IntegerField(null=True, blank=True)#KEY0	
+    key1 = models.IntegerField(null=True, blank=True)#KEY1	
+    key2 = models.IntegerField(null=True, blank=True)#KEY2	
+    I0 = models.IntegerField(null=True, blank=True)#I0	
+    blood_glucose = models.IntegerField(null=True, blank=True)#I1	
+    I2 = models.IntegerField(null=True, blank=True)#I2	
+    I3 = models.IntegerField(null=True, blank=True)#I3	
+    I4 = models.IntegerField(null=True, blank=True)#I4	
+    cal_flag = models.IntegerField(null=True, blank=True)#I5	
+    I6 = models.IntegerField(null=True, blank=True)#I6	
+    I7 = models.IntegerField(null=True, blank=True)#I7	
+    I8 = models.IntegerField(null=True, blank=True)#I8	
+    I9 = models.IntegerField(null=True, blank=True)#I9	
+    #D0	
+    #D1	
+    #D2	
+    #D3	
+    #D4	
+    C0 = models.CharField(null=True, blank=True, max_length=50)#C0	
+    C1 = models.CharField(null=True, blank=True, max_length=50)#C1	
+    C2 = models.IntegerField(null=True, blank=True)    #C2	
+    #C3	
+    #C4	
+    #C5	
+    #C6	
+    #C7	
+    #C8	
+    #C9	
+    ismanual = models.IntegerField(null=True, blank=True)#ISMANUAL
+    comment = models.CharField(null=True, blank=True, max_length=50)#COMMENT
+    
+    @property
+    def blood_glucose_uk(self):
+        return float(self.blood_glucose) / 18.02
 
+        
 class Pump(models.Model):
     data_file = models.ForeignKey(DataFile)
     datetime = models.DateTimeField()#    Date
