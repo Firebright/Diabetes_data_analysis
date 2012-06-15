@@ -77,3 +77,47 @@ class Pump(models.Model):
     @property
     def blood_glucose_uk(self):
         return float(self.blood_glucose) / 18.02
+
+
+class Events(models.Model):
+    """
+    Events are a collection of Pump records that match a specific pattern
+    """
+    TYPE_CHOICES = (
+        (u'bgh1', u'Blood Glucose High'),
+        (u'bgh2', u'Blood Glucose Very High'),
+        (u'bgh3', u'Blood Glucose Extremely High'),
+        (u'bgok', u'Blood Glucose in normal range'),
+        (u'bgwarn', u'Blood Glucose Low Warning'),
+        (u'bgl1', u'Blood Glucose Low'),
+        (u'', u''),
+    )
+    start = models.DateTimeField()
+    stop = models.DateTimeField()
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    discovery = models.ForeignKey(Pump)
+    number_of_datapoints = models.IntegerField() # Store the number of datapoints that this was calculated from
+
+    @property
+    def duration(self):
+        return self.stop - self.start
+
+    @property
+    def recovery(self):
+        return self.stop - self.discovery.datetime
+
+
+class DailySummary(models.Model):
+    """
+    Records a daily summary of Pump data after analysis
+    """
+    date = models.DateField()
+    carbs_consumed = models.IntegerField() # Total number of grams of carbohydrate consumed in a day
+    bolus = models.FloatField() # Total units of bolus insulin given in a day
+    basal = models.FloatField() # Total units of basal insulin given in a day
+    bg_max = models.FloatField() # Maximum level of Blood glucose in this day
+    bg_min = models.FloatField() # Minimum level of Blood glucose in this day
+    bg_mean = models.FloatField() # Average level of Blood glucose in this day
+    bg_std = models.FloatField() # Standard deviation of Blood glucose readings in this day
+    number_of_datapoints = models.IntegerField() # Store the number of datapoints that this was calculated from
+    number_of_bg_test = models.IntegerField() # Store the number of pump records containing bg readings
