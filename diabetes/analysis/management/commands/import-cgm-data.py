@@ -52,8 +52,8 @@ class Command(LabelCommand):
             else:
                 print "\n\n%s - has already been imported" % filename
 
-            # Data imported, now do summary analysis
-            self._data_analysis()
+#            # Data imported, now do summary analysis
+#            self._data_analysis()
 
         print "\nImport finished at " + str(datetime.utcnow())
         return None
