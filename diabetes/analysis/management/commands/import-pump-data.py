@@ -144,7 +144,7 @@ class Command(LabelCommand):
         pump["basal"] = self._cast('float', entrydict.get('insulin rate (units/hour)'))
         pump["insulin_tdd"] = self._cast('float', entrydict.get('insulin tdd (units)'))
 
-        created, obj = Pump.objects.get_or_create(
+        obj, created = Pump.objects.get_or_create(
             datetime = pump.get("datetime"),
             defaults = pump
         )
@@ -263,6 +263,10 @@ class Command(LabelCommand):
 #            print '_generate_daily_summaries() bolus_pen={0}, bolus_pump={1}, bolus_pen_count={2}'.format(bolus_pen,bolus_pump,bolus_pen_count)
             if bolus_pen and bolus_pump:
                 ds_dict["bolus"] = bolus_pen + bolus_pump
+            elif bolus_pen:
+                ds_dict["bolus"] = bolus_pen
+            elif bolus_pump:
+                ds_dict["bolus"] = bolus_pump
             else:
                 ds_dict["bolus"] = None
             ds_dict["basal"] = self._basal_total_calc(start_date, end_date)
@@ -321,26 +325,47 @@ class Command(LabelCommand):
                     Count('blood_glucose')
                 ).get('blood_glucose__count')
             )
+            ds_dict["number_of_bolus_pen_test"] = self._cast(
+                'int',
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    bolus_pen__isnull=False
+                ).aggregate(
+                    Count('bolus_pen')
+                ).get('bolus_pen__count')
+            )
+            ds_dict["number_of_bolus_pump_test"] = self._cast(
+                'int',
+                Pump.objects.filter(
+                    datetime__lt=end_date,
+                    datetime__gt=start_date,
+                    bolus_pump__isnull=False
+                ).aggregate(
+                    Count('bolus_pump')
+                ).get('bolus_pump__count')
+            )
+
 
             start_date = end_date
             end_date = start_date + timedelta(days = 1)
 
-#            print ds_dict
-            print "{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}".format(
-                ds_dict['date'],
-                ds_dict['carbs_consumed'],
-                bolus_pen,
-                bolus_pen_count,
-                bolus_pump,
-                ds_dict['bolus'],
-                ds_dict['basal'],
-                ds_dict['bg_max'],
-                ds_dict['bg_min'],
-                ds_dict['bg_mean'],
-                ds_dict['bg_std'],
-                ds_dict['number_of_datapoints'],
-                ds_dict.get('number_of_bg_test')
-            )
+            print ds_dict
+#            print "{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}".format(
+#                ds_dict['date'],
+#                ds_dict['carbs_consumed'],
+#                bolus_pen,
+#                bolus_pen_count,
+#                bolus_pump,
+#                ds_dict['bolus'],
+#                ds_dict['basal'],
+#                ds_dict['bg_max'],
+#                ds_dict['bg_min'],
+#                ds_dict['bg_mean'],
+#                ds_dict['bg_std'],
+#                ds_dict['number_of_datapoints'],
+#                ds_dict.get('number_of_bg_test')
+#            )
         return None
 
     def _basal_total_calc(self,sd, ed):
@@ -359,18 +384,22 @@ class Command(LabelCommand):
         if len(basal_list) < 2:
             return 0.0
         previous = basal_list[1]
-        seconds_so_far = 0
+        hours_so_far = 0
         basal_so_far = 0.0
         for item in basal_list[2:]:
-            duration = (item[0]-previous[0]).total_seconds()
+            duration = (item[0]-previous[0]).total_seconds()/3600.
             basal_so_far += float(previous[1] * duration)
-            seconds_so_far += duration
+            hours_so_far += duration
+            previous = item
+#            print 'basal_total_calc(): in loop item {0} duration {1} basal so for {2} hours so far {3}'.format(item, duration, basal_so_far, hours_so_far)
         # now calculate the duration of the last datapoint
-        duration = (basal_list[-1][0]-ed).total_seconds()
+        duration = (ed - basal_list[-1][0]).total_seconds()/3600.
         basal_so_far += basal_list[-1][1] * duration
-        seconds_so_far += duration
+        hours_so_far += duration
+#        print 'basal_total_calc() last point:  item {0} duration {1} basal so for {2} hours so far {3}'.format(basal_list[-1], duration, basal_so_far, hours_so_far)
         # now add on the basal from the previous day's last value for the remaining time
-        basal_so_far += float(basal_list[0][1] * (86400-seconds_so_far))
+        basal_so_far += float(basal_list[0][1] * (24-hours_so_far))
+#        print 'basal_total_calc() first point: basal_so_far {0}, remaining duration {1}'.format(basal_so_far, 24-hours_so_far)
         return float(basal_so_far)
 
     def _convert_blood_glucose_uk(self, bg):
