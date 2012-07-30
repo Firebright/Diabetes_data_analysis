@@ -156,12 +156,15 @@ class DailySummary(models.Model):
     Records a daily summary of Pump data after analysis
     """
     date = models.DateField()
-    carbs_consumed = models.IntegerField() # Total number of grams of carbohydrate consumed in a day
-    bolus = models.FloatField() # Total units of bolus insulin given in a day
-    basal = models.FloatField() # Total units of basal insulin given in a day
-    bg_max = models.FloatField() # Maximum level of Blood glucose in this day
-    bg_min = models.FloatField() # Minimum level of Blood glucose in this day
-    bg_mean = models.FloatField() # Average level of Blood glucose in this day
-    bg_std = models.FloatField() # Standard deviation of Blood glucose readings in this day
-    number_of_datapoints = models.IntegerField() # Store the number of datapoints that this was calculated from
-    number_of_bg_test = models.IntegerField() # Store the number of pump records containing bg readings
+    carbs_consumed = models.IntegerField(null=True, blank=True) # Total number of grams of carbohydrate consumed in a day
+    bolus_pen = models.FloatField(null=True, blank=True) # Total units of pen bolus insulin given in a day
+    bolus_pump = models.FloatField(null=True, blank=True) # Total units of pump bolus insulin given in a day
+    basal = models.FloatField(null=True, blank=True) # Total units of basal insulin given in a day
+    bg_max = models.FloatField(null=True, blank=True) # Maximum level of Blood glucose in this day
+    bg_min = models.FloatField(null=True, blank=True) # Minimum level of Blood glucose in this day
+    bg_mean = models.FloatField(null=True, blank=True) # Average level of Blood glucose in this day
+    bg_std = models.FloatField(null=True, blank=True) # Standard deviation of Blood glucose readings in this day
+    number_of_datapoints = models.IntegerField(null=True, blank=True) # Store the number of datapoints that this was calculated from
+    number_of_bg_test = models.IntegerField(null=True, blank=True) # Store the number of pump records containing bg readings
+    number_of_bolus_pen = models.IntegerField(null=True, blank=True)
+    number_of_bolus_pump = models.IntegerField(null=True, blank=True)
