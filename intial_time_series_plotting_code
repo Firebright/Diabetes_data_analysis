@@ -1,0 +1,122 @@
+$(function () {
+    var chart;
+    $(document).ready(function() {
+        chart = new Highcharts.Chart({
+            chart: {
+                renderTo: 'container',
+                zoomType: 'x',
+                spacingRight: 20
+            },
+            title: {
+                text: 'Blood glucose data over time'
+            },
+            subtitle: {
+                text: document.ontouchstart === undefined ?
+                    'Click and drag in the plot area to zoom in' :
+                    'Drag your finger over the plot to zoom in'
+            },
+            xAxis: {
+                type: 'datetime',
+                maxZoom: 600000, // 10 mins
+                title: {
+                    text: null
+                }
+            },
+            yAxis: {
+                title: {
+                    text: 'Blood glucose (mmol/l)'
+                },
+                min: 0,
+                startOnTick: false,
+                showFirstLabel: false
+         //       plotBands: [{ // Hypo
+         //           from: 0,
+         //           to: 66,
+         //           color: 'rgba(1, 0, 0, 0.1)',
+         //           label: {
+         //               text: 'Hypo',
+         //               style: {
+         //                   color: '#606060'
+         //               }
+         //           }
+         //       }
+         //           ]
+            },
+            tooltip: {
+                shared: true
+            },
+            legend: {
+                enabled: false
+            },
+            plotOptions: {
+                area: {
+                    fillColor: {
+                        linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1},
+                        stops: [
+                            [0, Highcharts.getOptions().colors[0]],
+                            [1, 'rgba(2,0,0,0)']
+                        ]
+                    },
+                    lineWidth: 1,
+                    marker: {
+                        enabled: false,
+                        states: {
+                            hover: {
+                                enabled: true,
+                                radius: 5
+                            }
+                        }
+                    },
+                    shadow: false,
+                    states: {
+                        hover: {
+                            lineWidth: 1
+                        }
+                    }
+                }
+            },
+    
+            series: [{
+                type: 'area',
+                name: 'BG_monitor',
+                data: [
+                    [Date.UTC(2008,  5, 22, 13, 20), 318   ],
+                    [Date.UTC(2008, 5, 22,13,15), 44 ],
+                    [Date.UTC(2008, 5, 22,11,40), 108 ],
+                    [Date.UTC(2008, 5,  22,10,40), 108 ],
+                    [Date.UTC(2008, 5,  22,9,30), 70 ],
+                    [Date.UTC(2008, 5, 22,8,35), 80 ],
+                    [Date.UTC(2008, 5, 22,7,40), 90],
+                    [Date.UTC(2008,  5,  22,6,40), 100],
+                    [Date.UTC(2008,  5,  22,6,10), 108],
+                    [Date.UTC(2008,  5, 22,5,16), 340],
+                    [Date.UTC(2008,  5, 22,5,15), 350],
+                    [Date.UTC(2008,  5, 22,4,25), 108],
+                    [Date.UTC(2008,  5, 22,3,55), 108],
+                    [Date.UTC(2008,  5, 22,3,25), 250],
+                    [Date.UTC(2008,  5,  22,2,55), 250],
+                    [Date.UTC(2008,  5, 22,2,25), 200],
+                    [Date.UTC(2008,  5, 22,1,55), 55],
+                    [Date.UTC(2008,  5, 22,0,55), 55],
+                    [Date.UTC(2008,  5,  22,0,25), 108],
+                    [Date.UTC(2008,  5,  21,23,55), 108],
+                    [Date.UTC(2008,  5, 21,23,25), 55 ],
+                    [Date.UTC(2008,  5,  21,22,55), 55 ],
+                    [Date.UTC(2008,  5, 21,22,25), 70 ],
+                    [Date.UTC(2008,  5,  21,21,55), 70],
+                    [Date.UTC(2008,  5,  21,21,25), 108],
+                    [Date.UTC(2008,  5,  21,20,55), 108],
+                    [Date.UTC(2008,  5,  21,20,25), 200],
+                    [Date.UTC(2008,  5,  21,19,55), 200],
+                    [Date.UTC(2008,  5,  21,19,25), 160],
+                    [Date.UTC(2008,  5,  21,18,55), 160],
+                    [Date.UTC(2008,  5,  21,18,25), 108],
+                    [Date.UTC(2008,  5, 21,17,55),  108 ]
+                ]
+            }]
+        });
+    });
+    
+});
+
+ 

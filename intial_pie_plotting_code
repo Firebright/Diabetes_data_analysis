@@ -1,0 +1,49 @@
+$(function () {
+    var chart;
+    $(document).ready(function() {
+        chart = new Highcharts.Chart({
+            chart: {
+                renderTo: 'container',
+                plotBackgroundColor: null,
+                plotBorderWidth: null,
+                plotShadow: false
+            },
+            title: {
+                text: 'Time spent in each state'
+            },
+            tooltip: {
+                formatter: function() {
+                    return '<b>'+ this.point.name +'</b>: '+ this.percentage +' %';
+                }
+            },
+            plotOptions: {
+                pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                        enabled: false
+                    },
+                    showInLegend: true
+                }
+            },
+            series: [{
+                type: 'pie',
+                name: 'Time spent',
+                data: [
+                    ['Low',   10.0],
+                    ['High',       15],
+                    {
+                        name: 'OK',
+                        y: 65,
+                        sliced: true,
+                        selected: true
+                    },
+                    ['Warn',    2],
+                    ['Very high',     7.3],
+                    ['Extremly high',   0.7]
+                ]
+            }]
+        });
+    });
+    
+});

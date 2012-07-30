@@ -7,8 +7,9 @@ Created on Tue Aug 23 15:57:57 2011
 #import pycallgraph
 import numpy
 #from matplotlib.dates import date2num, num2date
-from xls_import import import_module_xls
+#from xls_import import import_module_xls
 from cgm_import import get_CGM_data
+from bg_import import get_BG_data
 import datetime
 import plotting
 import calendar
@@ -470,7 +471,7 @@ def generate_event_list(bg_tests, samples, states):
     return event_type, event_duration_streams, event_recovery_streams, \
             event_num, event_duration_mean, event_recovery_mean
     
-def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):   
+def top(start_date = [1, 4, 2012], end_date = [1, 5, 2012]):   
     '''Analysis of blood glucose and insulin dose data which has been 
     extracted into a xls spreadsheet from the manufacturers reporting tools.'''
     # Alarm levels
@@ -484,19 +485,21 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     # Generate a set of datastreams from the xls. each stream is a 
     # matrix with dimensions 2XN with [0] being the time and
     # [1] being the data.
-    bolusstream, basalstream, basaladjustream, basaladjlstream, \
-            bgstream, carbstream, eventstream\
-            = import_module_xls('.')
+    bolusstream, basalstream, bgstream, carbstream, pen_dosesstream = \
+        get_BG_data('.')
+#    bolusstream, basalstream, basaladjustream, basaladjlstream, \
+#            bgstream, carbstream, eventstream\
+#            = import_module_xls('.')
     cgmstream, cgm_device_name, cgm_device_id = \
             get_CGM_data('./CGM_data')
     print 'Data extracted from files'
     bolusstream = select_time_period(bolusstream, start_date, end_date)
     basalstream = select_time_period(basalstream, start_date, end_date)
-    basaladjustream = select_time_period(basaladjustream, start_date, end_date)
-    basaladjlstream = select_time_period(basaladjlstream, start_date, end_date)
+#    basaladjustream = select_time_period(basaladjustream, start_date, end_date)
+#    basaladjlstream = select_time_period(basaladjlstream, start_date, end_date)
     bgstream = select_time_period(bgstream, start_date, end_date)
     carbstream = select_time_period(carbstream, start_date, end_date)
-    eventstream = select_time_period(eventstream, start_date, end_date)
+#    eventstream = select_time_period(eventstream, start_date, end_date)
     cgmstream = select_time_period(cgmstream, start_date, end_date)
     basalstream = remove_nan_from_stream(basalstream)
     bolusstream = remove_nan_from_stream(bolusstream)
@@ -504,8 +507,8 @@ def top(start_date = [1, 1, 2011], end_date = [1, 2, 2011]):
     cgmstream = remove_nan_from_stream(cgmstream)
     carbstream = remove_nan_from_stream(carbstream)
     #eventstream = remove_nan_from_stream(eventstream)
-    basaladjustream = remove_nan_from_stream(basaladjustream)
-    basaladjlstream = remove_nan_from_stream(basaladjlstream)  
+#    basaladjustream = remove_nan_from_stream(basaladjustream)
+#    basaladjlstream = remove_nan_from_stream(basaladjlstream)  
     print 'Streams conditioned'
     # combining the cgm and bg monitor data to get a trace which reflects the 
     # gradient changes as seen on the CGM with the (hopefully) more acurate
