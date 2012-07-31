@@ -121,6 +121,9 @@ class Command(LabelCommand):
 
     def _parseline(self, entrydict, datafile_obj):
 #        print "_parseline() called with: " + str(entrydict)
+        if entrydict.get('bg control') == "X":
+            return None
+
         pump = dict()
         pump["data_file"] = datafile_obj
         pump["datetime"] = self._parse_timestamp(entrydict.get('date'), entrydict.get('time'))
@@ -157,6 +160,10 @@ class Command(LabelCommand):
                     obj.blood_glucose,
                     pump.get("blood_glucose")
                 )
+            if obj.bolus_pen != pump.get("bolus_pen"):
+                print "Different values of bolus. Leaving for now until we get a better idea how to deal with this."
+            if obj.bolus_pump != pump.get("bolus_pump"):
+                print "Different values of bolus. Leaving for now until we get a better idea how to deal with this."
 
         return None
 
@@ -176,11 +183,25 @@ class Command(LabelCommand):
 
     def _parse_timestamp(self,d, f):
         """Adjust timestamp supplied to GMT and returns a datetime object"""
+#
+#        class UTC(datetime.tzinfo):
+#            """UTC"""
+#
+#            def utcoffset(self, dt):
+#                return ZERO
+#
+#            def tzname(self, dt):
+#                return "UTC"
+#
+#            def dst(self, dt):
+#                return ZERO
+
+
         initialstring = d + ' ' + f
         print "_parse_timestamp():" + initialstring
         input_format = "%m/%d/%Y %H:%M:%S"
         base_time = time.strptime(initialstring,input_format)
-        dt = datetime.fromtimestamp(time.mktime(base_time))
+        dt = datetime.utcfromtimestamp(time.mktime(base_time)) #.replace(tzinfo=UTC)
         return dt #"{0:%Y-%m-%d %H:%M:%S}".format(ts)
 
     def _data_analysis(self):
@@ -202,25 +223,11 @@ class Command(LabelCommand):
         start_date = day0.datetime.replace(hour=0, minute=0,second=0,microsecond=0)
         end_date = start_date + timedelta(days = 1)
 
-        print """ds_dict['date'],
-        ds_dict['carbs_consumed'],
-        bolus_pen,
-        bolus_pen_count,
-        bolus_pump,
-        ds_dict['bolus'],
-        ds_dict['basal'],
-        ds_dict['bg_max'],
-        ds_dict['bg_min'],
-        ds_dict['bg_mean'],
-        ds_dict['bg_std'],
-        ds_dict['number_of_datapoints'],
-        ds_dict['number_of_bg_test']
-        """
         while day_end.datetime > end_date:
 #            print "_generate_daily_summaries(): start date: {0} - {1}".format(start_date, end_date)
-            ds_dict = dict()
-            ds_dict["date"] = start_date
-            ds_dict["carbs_consumed"] = self._cast(
+            ds_obj = DailySummary()
+            ds_obj.date = start_date
+            ds_obj.carbs_consumed = self._cast(
                 'int',
                 Pump.objects.filter(
                     datetime__lt=end_date,
@@ -230,7 +237,7 @@ class Command(LabelCommand):
                     Sum('carbs')
                 ).get('carbs__sum')
             )
-            bolus_pen = self._cast(
+            ds_obj.bolus_pen = self._cast(
                 'float',
                 Pump.objects.filter(
                     datetime__lt=end_date,
@@ -240,17 +247,7 @@ class Command(LabelCommand):
                     Sum('bolus_pen')
                 ).get('bolus_pen__sum')
             )
-            bolus_pen_count = self._cast(
-                'float',
-                Pump.objects.filter(
-                    datetime__lt=end_date,
-                    datetime__gt=start_date,
-                    bolus_pen__isnull=False
-                ).aggregate(
-                    Count('bolus_pen')
-                ).get('bolus_pen__count')
-            )
-            bolus_pump = self._cast(
+            ds_obj.bolus_pump = self._cast(
                 'float',
                 Pump.objects.filter(
                     datetime__lt=end_date,
@@ -260,17 +257,8 @@ class Command(LabelCommand):
                     Sum('bolus_pump')
                 ).get('bolus_pump__sum')
             )
-#            print '_generate_daily_summaries() bolus_pen={0}, bolus_pump={1}, bolus_pen_count={2}'.format(bolus_pen,bolus_pump,bolus_pen_count)
-            if bolus_pen and bolus_pump:
-                ds_dict["bolus"] = bolus_pen + bolus_pump
-            elif bolus_pen:
-                ds_dict["bolus"] = bolus_pen
-            elif bolus_pump:
-                ds_dict["bolus"] = bolus_pump
-            else:
-                ds_dict["bolus"] = None
-            ds_dict["basal"] = self._basal_total_calc(start_date, end_date)
-            ds_dict["bg_max"] = self._convert_blood_glucose_uk(
+            ds_obj.basal = self._basal_total_calc(start_date, end_date)
+            ds_obj.bg_max = self._convert_blood_glucose_uk(
                 Pump.objects.filter(
                     datetime__lt=end_date,
                     datetime__gt=start_date,
@@ -279,7 +267,7 @@ class Command(LabelCommand):
                     Max('blood_glucose')
                 ).get('blood_glucose__max')
             )
-            ds_dict["bg_min"] = self._convert_blood_glucose_uk(
+            ds_obj.bg_min = self._convert_blood_glucose_uk(
                 Pump.objects.filter(
                     datetime__lt=end_date,
                     datetime__gt=start_date,
@@ -288,7 +276,7 @@ class Command(LabelCommand):
                     Min('blood_glucose')
                 ).get('blood_glucose__min')
             )
-            ds_dict["bg_mean"] = self._convert_blood_glucose_uk(
+            ds_obj.bg_mean = self._convert_blood_glucose_uk(
                 Pump.objects.filter(
                     datetime__lt=end_date,
                     datetime__gt=start_date,
@@ -297,7 +285,7 @@ class Command(LabelCommand):
                     Avg('blood_glucose')
                 ).get('blood_glucose__avg')
             )
-            ds_dict["bg_std"] = self._convert_blood_glucose_uk(
+            ds_obj.bg_std = self._convert_blood_glucose_uk(
                 Pump.objects.filter(
                     datetime__lt=end_date,
                     datetime__gt=start_date,
@@ -306,7 +294,7 @@ class Command(LabelCommand):
                     StdDev('blood_glucose')
                 ).get('blood_glucose__stddev')
             )
-            ds_dict["number_of_datapoints"] = self._cast(
+            ds_obj.number_of_datapoints = self._cast(
                 'int',
                 Pump.objects.filter(
                     datetime__lt=end_date,
@@ -315,7 +303,7 @@ class Command(LabelCommand):
                     Count('datetime')
                 ).get('datetime__count')
             )
-            ds_dict["number_of_bg_test"] = self._cast(
+            ds_obj.number_of_bg_test = self._cast(
                 'int',
                 Pump.objects.filter(
                     datetime__lt=end_date,
@@ -325,7 +313,7 @@ class Command(LabelCommand):
                     Count('blood_glucose')
                 ).get('blood_glucose__count')
             )
-            ds_dict["number_of_bolus_pen_test"] = self._cast(
+            ds_obj.number_of_bolus_pen = self._cast(
                 'int',
                 Pump.objects.filter(
                     datetime__lt=end_date,
@@ -335,7 +323,7 @@ class Command(LabelCommand):
                     Count('bolus_pen')
                 ).get('bolus_pen__count')
             )
-            ds_dict["number_of_bolus_pump_test"] = self._cast(
+            ds_obj.number_of_bolus_pump = self._cast(
                 'int',
                 Pump.objects.filter(
                     datetime__lt=end_date,
@@ -345,27 +333,11 @@ class Command(LabelCommand):
                     Count('bolus_pump')
                 ).get('bolus_pump__count')
             )
-
+            ds_obj.save()
 
             start_date = end_date
             end_date = start_date + timedelta(days = 1)
 
-            print ds_dict
-#            print "{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}".format(
-#                ds_dict['date'],
-#                ds_dict['carbs_consumed'],
-#                bolus_pen,
-#                bolus_pen_count,
-#                bolus_pump,
-#                ds_dict['bolus'],
-#                ds_dict['basal'],
-#                ds_dict['bg_max'],
-#                ds_dict['bg_min'],
-#                ds_dict['bg_mean'],
-#                ds_dict['bg_std'],
-#                ds_dict['number_of_datapoints'],
-#                ds_dict.get('number_of_bg_test')
-#            )
         return None
 
     def _basal_total_calc(self,sd, ed):

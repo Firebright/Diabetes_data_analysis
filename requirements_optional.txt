@@ -1,0 +1,2 @@
+distribute>=0.6.26
+django-debug-toolbar>=0.9.4
