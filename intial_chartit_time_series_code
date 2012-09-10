@@ -1,0 +1,46 @@
+from chartit import DataPool, Chart
+
+def bg_chart_view(request):
+    #Step 1: Create a DataPool with the data we want to retrieve.
+    BGdata = \
+        DataPool(
+           series=
+            [{'options': {
+               'source': Pump.objects.all()},
+              'terms': [
+                'datetime',
+                'blood_glucose']}
+             ])
+
+    #Step 2: Create the Chart object
+    cht = Chart(
+            datasource = BGdata,
+            series_options =
+              [{'options':{
+                  'type': 'area',
+                  'stacking': False},
+                'terms':{
+                  'datetime': [
+                    'blood_glucose']
+                  }}],
+            chart_options =
+              {'title': {
+                   'text':'Blood glucose data over time'},
+		'subtitle': {
+		  text: document.ontouchstart === undefined ?
+                    'Click and drag in the plot area to zoom in' :
+                    'Drag your finger over the plot to zoom in'},
+               'xAxis': {
+		  type: 'datetime',
+		  maxZoom: 600000, // 10 mins
+		  title: {
+                    text: null }},
+		yAxis: {
+		  title: {
+                    text: 'Blood glucose (mmol/l)'},
+                min: 0,
+                startOnTick: false,
+                showFirstLabel: false}})
+
+    #Step 3: Send the chart object to the template.
+    return render_to_response({'bgchart': cht}) 
